@@ -291,8 +291,51 @@ export default function Page() {
           ))}
         </div>
 
-        {/* Toolbar */}
+        {/* Ações */}
+        {(isAdmin || canCreate) && (
+          <div className="actionsbar">
+            {isAdmin && (
+              <div className="mgmt">
+                <button className="mgmt-btn" onClick={() => setUsersOpen(true)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  Usuários
+                </button>
+                <button className="mgmt-btn" onClick={() => setCarteirasOpen(true)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
+                  </svg>
+                  Carteiras
+                </button>
+                <button className="mgmt-btn" onClick={() => setAreasOpen(true)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 6h16M4 12h16M4 18h10" />
+                  </svg>
+                  Áreas
+                </button>
+              </div>
+            )}
+            <div className="spacer" />
+            {canCreate && (
+              <button className="btn primary" onClick={() => setEditTarget("new")}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Nova implantação
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Filtros */}
         <div className="toolbar">
+          <span className="toolbar-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 5h16M7 12h10M10 19h4" />
+            </svg>
+            Filtros
+          </span>
           <div className="search">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="7" />
@@ -342,37 +385,6 @@ export default function Page() {
                 </option>
               ))}
             </select>
-          )}
-          <div className="spacer" />
-          {isAdmin && (
-            <>
-              <button className="btn ghost" onClick={() => setUsersOpen(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                Usuários
-              </button>
-              <button className="btn ghost" onClick={() => setCarteirasOpen(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 7h18M3 12h18M3 17h18" />
-                </svg>
-                Carteiras
-              </button>
-              <button className="btn ghost" onClick={() => setAreasOpen(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 6h16M4 12h16M4 18h10" />
-                </svg>
-                Áreas
-              </button>
-            </>
-          )}
-          {canCreate && (
-            <button className="btn primary" onClick={() => setEditTarget("new")}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              Nova implantação
-            </button>
           )}
         </div>
 
@@ -1377,14 +1389,37 @@ function UserFormModal({
           {carteiras.length === 0 ? (
             <span className="hint">Crie carteiras primeiro (botão “Carteiras”).</span>
           ) : (
-            <div className="checkgroup">
-              {carteiras.map((c) => (
-                <label key={c.id} className="checkitem">
-                  <input type="checkbox" checked={sel.includes(c.nome)} onChange={() => toggle(c.nome)} />
-                  <span>{c.nome}</span>
-                </label>
-              ))}
-            </div>
+            <>
+              <div className="checkgroup-head">
+                <span>{sel.length} de {carteiras.length} selecionada(s)</span>
+                <div className="checkgroup-actions">
+                  <button
+                    type="button"
+                    className="linkbtn"
+                    onClick={() => setSel(carteiras.map((c) => c.nome))}
+                    disabled={sel.length === carteiras.length}
+                  >
+                    Selecionar todas
+                  </button>
+                  <button
+                    type="button"
+                    className="linkbtn"
+                    onClick={() => setSel([])}
+                    disabled={sel.length === 0}
+                  >
+                    Limpar
+                  </button>
+                </div>
+              </div>
+              <div className="checkgroup">
+                {carteiras.map((c) => (
+                  <label key={c.id} className="checkitem">
+                    <input type="checkbox" checked={sel.includes(c.nome)} onChange={() => toggle(c.nome)} />
+                    <span>{c.nome}</span>
+                  </label>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
