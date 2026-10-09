@@ -219,7 +219,7 @@ function sanitizeCarteiras(v: unknown): string[] {
 }
 
 function sanitizeRole(v: unknown): Role {
-  return v === "admin" ? "admin" : "user";
+  return v === "admin" ? "admin" : v === "viewer" ? "viewer" : "user";
 }
 
 export async function createUser(input: {
@@ -309,11 +309,12 @@ export function visibleFor(session: Session, imps: Implantacao[]): Implantacao[]
   return imps.filter((i) => set.has(i.carteira));
 }
 
-/** Verdadeiro se a sessão pode editar/criar nesta carteira. */
+/** Verdadeiro se a sessão pode editar/criar nesta carteira (viewer nunca pode). */
 export function canUseCarteira(session: Session, carteira: string): boolean {
   if (!session) return false;
   if (session.role === "admin") return true;
-  return session.carteiras.includes(carteira);
+  if (session.role === "user") return session.carteiras.includes(carteira);
+  return false; // viewer: somente leitura
 }
 
 export async function createArea(nome: string): Promise<Area> {

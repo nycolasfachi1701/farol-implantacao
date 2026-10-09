@@ -46,6 +46,12 @@ function ticketLabel(v: string): string {
 type Filter = { farol: Farol | ""; areaId: string; resp: string; carteira: string; q: string };
 const EMPTY_FILTER: Filter = { farol: "", areaId: "", resp: "", carteira: "", q: "" };
 
+const ROLE_LABEL: Record<Role, string> = {
+  admin: "Admin",
+  user: "Usuário",
+  viewer: "Visualizador",
+};
+
 /* ============================================================= */
 export default function Page() {
   const [configured, setConfigured] = useState(true);
@@ -57,6 +63,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>(EMPTY_FILTER);
   const [toast, setToast] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   const [loginOpen, setLoginOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Implantacao | "new" | null>(null);
@@ -72,9 +79,10 @@ export default function Page() {
     () => (isAdmin ? carteiras.map((c) => c.nome) : session?.carteiras ?? []),
     [isAdmin, carteiras, session]
   );
-  const canCreate = isAdmin || (!!session && myCarteiras.length > 0);
+  const canCreate = isAdmin || (session?.role === "user" && myCarteiras.length > 0);
   const canEditImp = useCallback(
-    (imp: Implantacao) => isAdmin || (!!session && session.carteiras.includes(imp.carteira)),
+    (imp: Implantacao) =>
+      isAdmin || (session?.role === "user" && session.carteiras.includes(imp.carteira)),
     [isAdmin, session]
   );
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,6 +114,23 @@ export default function Page() {
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, [load]);
+
+  // Sincroniza o estado do tema com o que o script inline já aplicou no <html>.
+  useEffect(() => {
+    const cur = (document.documentElement.dataset.theme as "light" | "dark") || "light";
+    setTheme(cur);
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem("theme", next);
+    } catch {
+      /* ignore */
+    }
+    setTheme(next);
+  }
 
   /* ---------- derivados ---------- */
   const areaById = useMemo(() => {
@@ -193,12 +218,30 @@ export default function Page() {
           </div>
           <div className="spacer" />
           <div className="whoami">
+            <button
+              className="iconbtn"
+              title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+              aria-label={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+              onClick={toggleTheme}
+              style={{ color: "var(--cinza)" }}
+            >
+              {theme === "dark" ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+                </svg>
+              )}
+            </button>
             {isLogged ? (
               <>
                 <span className="nm">{session?.name}</span>
-                <span className={`role ${isAdmin ? "admin" : "user"}`}>
-                  {isAdmin ? "Admin" : "Usuário"}
-                </span>
+                {session && (
+                  <span className={`role ${session.role}`}>{ROLE_LABEL[session.role]}</span>
+                )}
                 <button className="iconbtn" title="Sair" onClick={logout} style={{ color: "var(--cinza)" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
@@ -1180,7 +1223,7 @@ function UsersModal({
                   {u.name} <span className="umuted">@{u.username}</span>
                 </div>
                 <div className="utags">
-                  <span className={`role ${u.role}`}>{u.role === "admin" ? "Admin" : "Usuário"}</span>
+                  <span className={`role ${u.role}`}>{ROLE_LABEL[u.role]}</span>
                   {u.role !== "admin" &&
                     (u.carteiras.length ? (
                       u.carteiras.map((c) => (
@@ -1309,7 +1352,8 @@ function UserFormModal({
         <div className="field">
           <label>Papel</label>
           <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            <option value="user">Usuário</option>
+            <option value="user">Usuário (vê e edita)</option>
+            <option value="viewer">Visualizador (só vê)</option>
             <option value="admin">Admin</option>
           </select>
         </div>
@@ -1327,7 +1371,9 @@ function UserFormModal({
         <p className="hint">Administradores enxergam e editam todas as carteiras.</p>
       ) : (
         <div className="field">
-          <label>Carteiras com acesso</label>
+          <label>
+            Carteiras {role === "viewer" ? "visíveis (somente leitura)" : "com acesso"}
+          </label>
           {carteiras.length === 0 ? (
             <span className="hint">Crie carteiras primeiro (botão “Carteiras”).</span>
           ) : (

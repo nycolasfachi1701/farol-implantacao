@@ -45,7 +45,7 @@ export interface Carteira {
   createdAt: number;
 }
 
-export type Role = "admin" | "user";
+export type Role = "admin" | "user" | "viewer";
 
 /** Usuário como armazenado no banco (inclui hash da senha — nunca enviar ao cliente). */
 export interface User {
