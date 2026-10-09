@@ -71,6 +71,7 @@ export default function Page() {
   const [areasOpen, setAreasOpen] = useState(false);
   const [carteirasOpen, setCarteirasOpen] = useState(false);
   const [usersOpen, setUsersOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const isLogged = !!session;
   const isAdmin = session?.role === "admin";
@@ -292,7 +293,7 @@ export default function Page() {
         </div>
 
         {/* Ações */}
-        {(isAdmin || canCreate) && (
+        {(
           <div className="actionsbar">
             {isAdmin && (
               <div className="mgmt">
@@ -317,6 +318,13 @@ export default function Page() {
               </div>
             )}
             <div className="spacer" />
+            <button className="btn ghost" onClick={() => setReportOpen(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6M8 13h8M8 17h8M8 9h2" />
+              </svg>
+              Relatório
+            </button>
             {canCreate && (
               <button className="btn primary" onClick={() => setEditTarget("new")}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
@@ -535,7 +543,128 @@ export default function Page() {
           showToast={showToast}
         />
       )}
+
+      {reportOpen && (
+        <ReportView
+          rows={rows}
+          areaById={areaById}
+          filterActive={filter !== EMPTY_FILTER && JSON.stringify(filter) !== JSON.stringify(EMPTY_FILTER)}
+          generatedBy={session?.name || ""}
+          onClose={() => setReportOpen(false)}
+        />
+      )}
     </>
+  );
+}
+
+function ReportView({
+  rows,
+  areaById,
+  filterActive,
+  generatedBy,
+  onClose,
+}: {
+  rows: Implantacao[];
+  areaById: Record<string, Area>;
+  filterActive: boolean;
+  generatedBy: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const counts = { verde: 0, amarelo: 0, vermelho: 0 };
+  rows.forEach((r) => {
+    if (r.farol in counts) counts[r.farol]++;
+  });
+  const now = new Date().toLocaleString("pt-BR");
+
+  return (
+    <div className="report-root">
+      <div className="report-toolbar">
+        <button className="btn ghost" onClick={onClose}>
+          Fechar
+        </button>
+        <div className="spacer" />
+        <button className="btn primary" onClick={() => window.print()}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
+          </svg>
+          Imprimir / Salvar PDF
+        </button>
+      </div>
+
+      <div className="report-sheet">
+        <div className="report-head">
+          <img src="/atua-logo.png" alt="atua" className="report-logo" />
+          <div>
+            <h1>Relatório de Implantações</h1>
+            <div className="report-meta">
+              Gerado em {now}
+              {generatedBy ? ` por ${generatedBy}` : ""}
+              {filterActive ? " · filtros aplicados" : ""}
+            </div>
+          </div>
+        </div>
+
+        <div className="report-summary">
+          <div className="rs-item">
+            <span className="rs-num">{rows.length}</span>
+            <span className="rs-label">Total</span>
+          </div>
+          <div className="rs-item">
+            <span className="rs-dot verde" /> <span className="rs-num">{counts.verde}</span>
+            <span className="rs-label">Em dia</span>
+          </div>
+          <div className="rs-item">
+            <span className="rs-dot amarelo" /> <span className="rs-num">{counts.amarelo}</span>
+            <span className="rs-label">Atenção</span>
+          </div>
+          <div className="rs-item">
+            <span className="rs-dot vermelho" /> <span className="rs-num">{counts.vermelho}</span>
+            <span className="rs-label">Crítico</span>
+          </div>
+        </div>
+
+        {rows.length === 0 ? (
+          <p className="report-empty">Nenhuma implantação para listar.</p>
+        ) : (
+          <table className="report-table">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Carteira</th>
+                <th>Responsável</th>
+                <th>Farol</th>
+                <th>Situação / Ponto de atenção</th>
+                <th>Área</th>
+                <th>Ticket</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.cliente || "—"}</td>
+                  <td>{r.carteira || "—"}</td>
+                  <td>{r.responsavel || "—"}</td>
+                  <td className="nowrap">
+                    <span className={`rs-dot ${r.farol}`} /> {FAROL_LABEL[r.farol]}
+                  </td>
+                  <td>{r.situacao || "—"}</td>
+                  <td>{areaById[r.areaId]?.nome || "—"}</td>
+                  <td>{r.ticket ? (isTicketUrl(r.ticket) ? ticketLabel(r.ticket) : r.ticket) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <div className="report-footer">Farol de Implantações · atua · rotina de consultoria</div>
+      </div>
+    </div>
   );
 }
 
