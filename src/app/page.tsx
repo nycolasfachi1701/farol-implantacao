@@ -855,12 +855,16 @@ function EmptyFirst({
 /* ---------- Modais ---------- */
 function Modal({
   title,
+  subtitle,
+  icon,
   children,
   footer,
   onClose,
   width,
 }: {
   title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
   footer: React.ReactNode;
   onClose: () => void;
@@ -875,7 +879,16 @@ function Modal({
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={width ? { maxWidth: width } : undefined}>
         <header>
-          <h2>{title}</h2>
+          {icon && <span className="modal-icon">{icon}</span>}
+          <div className="modal-htext">
+            <h2>{title}</h2>
+            {subtitle && <p className="modal-sub">{subtitle}</p>}
+          </div>
+          <button className="modal-x" onClick={onClose} aria-label="Fechar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
         </header>
         <div className="body">{children}</div>
         <footer>{footer}</footer>
@@ -1026,6 +1039,12 @@ function EditModal({
   return (
     <Modal
       title={isNew ? "Nova implantação" : "Editar implantação"}
+      subtitle={isNew ? "Cadastre um acompanhamento" : base?.cliente}
+      icon={
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+      }
       onClose={onClose}
       footer={
         <>
@@ -1200,7 +1219,13 @@ function AreasModal({
   return (
     <Modal
       title="Áreas"
-      width={440}
+      subtitle="Áreas de apoio usadas nas implantações"
+      icon={
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 6h16M4 12h16M4 18h10" />
+        </svg>
+      }
+      width={460}
       onClose={onClose}
       footer={
         <button className="btn ghost" onClick={onClose}>
@@ -1208,29 +1233,45 @@ function AreasModal({
         </button>
       }
     >
-      <p className="hint">Áreas de apoio dentro da NSTECH. Crie conforme a necessidade.</p>
-      <div className="arealist">
-        {areas.length === 0 && <div className="muted">Nenhuma área ainda.</div>}
-        {areas.map((a) => (
-          <div className="arearow" key={a.id}>
-            <span>{a.nome}</span>
-            <button className="btn danger" onClick={() => remove(a.id)}>
-              Remover
-            </button>
-          </div>
-        ))}
-      </div>
-      <div className="addarea">
+      <div className="manage-add">
         <input
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="Nova área (ex.: Produto)"
         />
-        <button className="btn primary" onClick={add} disabled={busy}>
+        <button className="btn primary" onClick={add} disabled={busy || !nome.trim()}>
           Adicionar
         </button>
       </div>
+      <div className="manage-count">
+        {areas.length} {areas.length === 1 ? "área" : "áreas"}
+      </div>
+      {areas.length === 0 ? (
+        <div className="manage-empty">Nenhuma área ainda — adicione a primeira acima.</div>
+      ) : (
+        <div className="manage-list">
+          {areas.map((a) => (
+            <div className="manage-row" key={a.id}>
+              <span className="manage-row-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 6h16M4 12h16M4 18h10" />
+                </svg>
+              </span>
+              <span className="manage-row-name">{a.nome}</span>
+              <button
+                className="manage-del"
+                title="Remover área"
+                onClick={() => window.confirm(`Remover a área "${a.nome}"?`) && remove(a.id)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -1270,7 +1311,13 @@ function CarteirasModal({
   return (
     <Modal
       title="Carteiras"
-      width={440}
+      subtitle="Classificam as implantações e definem o acesso dos usuários"
+      icon={
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
+        </svg>
+      }
+      width={460}
       onClose={onClose}
       footer={
         <button className="btn ghost" onClick={onClose}>
@@ -1278,32 +1325,45 @@ function CarteirasModal({
         </button>
       }
     >
-      <p className="hint">
-        Carteiras padronizadas. Use-as para classificar implantações e definir o acesso de cada
-        usuário.
-      </p>
-      <div className="arealist">
-        {carteiras.length === 0 && <div className="muted">Nenhuma carteira ainda.</div>}
-        {carteiras.map((c) => (
-          <div className="arearow" key={c.id}>
-            <span>{c.nome}</span>
-            <button className="btn danger" onClick={() => remove(c.id)}>
-              Remover
-            </button>
-          </div>
-        ))}
-      </div>
-      <div className="addarea">
+      <div className="manage-add">
         <input
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="Nova carteira (ex.: Sul 1)"
         />
-        <button className="btn primary" onClick={add} disabled={busy}>
+        <button className="btn primary" onClick={add} disabled={busy || !nome.trim()}>
           Adicionar
         </button>
       </div>
+      <div className="manage-count">
+        {carteiras.length} {carteiras.length === 1 ? "carteira" : "carteiras"}
+      </div>
+      {carteiras.length === 0 ? (
+        <div className="manage-empty">Nenhuma carteira ainda — adicione a primeira acima.</div>
+      ) : (
+        <div className="manage-list">
+          {carteiras.map((c) => (
+            <div className="manage-row" key={c.id}>
+              <span className="manage-row-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 7h18v13H3zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </span>
+              <span className="manage-row-name">{c.nome}</span>
+              <button
+                className="manage-del"
+                title="Remover carteira"
+                onClick={() => window.confirm(`Remover a carteira "${c.nome}"?`) && remove(c.id)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -1322,6 +1382,17 @@ function UsersModal({
   showToast: (m: string) => void;
 }) {
   const [formTarget, setFormTarget] = useState<UserPublic | "new" | null>(null);
+  const [q, setQ] = useState("");
+
+  const filtered = users.filter((u) => {
+    const s = q.trim().toLowerCase();
+    if (!s) return true;
+    return (
+      u.name.toLowerCase().includes(s) ||
+      u.username.toLowerCase().includes(s) ||
+      u.carteiras.some((c) => c.toLowerCase().includes(s))
+    );
+  });
 
   async function remove(u: UserPublic) {
     if (!window.confirm(`Remover o usuário "${u.name}"? Esta ação não pode ser desfeita.`)) return;
@@ -1338,6 +1409,12 @@ function UsersModal({
     <>
       <Modal
         title="Usuários e acessos"
+        subtitle="Contas, papéis e carteiras de cada pessoa"
+        icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        }
         width={580}
         onClose={onClose}
         footer={
@@ -1346,47 +1423,75 @@ function UsersModal({
               Concluir
             </button>
             <button className="btn primary" onClick={() => setFormTarget("new")}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
               Novo usuário
             </button>
           </>
         }
       >
-        <p className="hint">
-          Crie contas e defina quais carteiras cada pessoa enxerga e edita. Administradores veem e
-          editam tudo.
-        </p>
+        {users.length > 4 && (
+          <div className="search modal-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="search"
+              placeholder="Buscar por nome, login ou carteira…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+        )}
+        <div className="manage-count">
+          {users.length} {users.length === 1 ? "usuário" : "usuários"}
+        </div>
         <div className="userlist">
-          {users.length === 0 && <div className="muted">Nenhum usuário cadastrado.</div>}
-          {users.map((u) => (
-            <div className="userrow" key={u.id}>
-              <div className="uinfo">
-                <div className="uname">
-                  {u.name} <span className="umuted">@{u.username}</span>
+          {users.length === 0 ? (
+            <div className="manage-empty">Nenhum usuário ainda — crie o primeiro em “Novo usuário”.</div>
+          ) : filtered.length === 0 ? (
+            <div className="manage-empty">Nenhum usuário encontrado.</div>
+          ) : (
+            filtered.map((u) => (
+              <div className="userrow" key={u.id}>
+                <span className={`uavatar role ${u.role}`}>
+                  {(u.name || u.username).trim().charAt(0).toUpperCase()}
+                </span>
+                <div className="uinfo">
+                  <div className="uname">
+                    {u.name} <span className="umuted">@{u.username}</span>
+                  </div>
+                  <div className="utags">
+                    <span className={`role ${u.role}`}>{ROLE_LABEL[u.role]}</span>
+                    {u.role !== "admin" &&
+                      (u.carteiras.length ? (
+                        u.carteiras.map((c) => (
+                          <span className="chip" key={c}>
+                            {c}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="muted">sem carteira</span>
+                      ))}
+                  </div>
                 </div>
-                <div className="utags">
-                  <span className={`role ${u.role}`}>{ROLE_LABEL[u.role]}</span>
-                  {u.role !== "admin" &&
-                    (u.carteiras.length ? (
-                      u.carteiras.map((c) => (
-                        <span className="chip" key={c}>
-                          {c}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="muted">sem carteira</span>
-                    ))}
+                <div className="uactions">
+                  <button className="iconbtn2" title="Editar" onClick={() => setFormTarget(u)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
+                  <button className="iconbtn2 danger" title="Remover" onClick={() => remove(u)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <div className="uactions">
-                <button className="btn ghost" onClick={() => setFormTarget(u)}>
-                  Editar
-                </button>
-                <button className="btn danger" onClick={() => remove(u)}>
-                  Remover
-                </button>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </Modal>
 
@@ -1466,6 +1571,12 @@ function UserFormModal({
   return (
     <Modal
       title={isNew ? "Novo usuário" : "Editar usuário"}
+      subtitle={isNew ? "Defina papel e carteiras" : `@${base?.username}`}
+      icon={
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+        </svg>
+      }
       width={480}
       onClose={onClose}
       footer={

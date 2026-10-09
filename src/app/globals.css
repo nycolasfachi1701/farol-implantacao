@@ -277,9 +277,16 @@ tbody tr:hover { background: var(--surface-2); }
 /* ===== Modal ===== */
 .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 80; display: grid; place-items: center; padding: 16px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
 .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); width: 100%; max-width: 520px; max-height: 88vh; overflow: auto; }
-.modal header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); }
-.modal header h2 { margin: 0; font-size: 16px; font-weight: 700; }
-.modal .body { padding: 18px 20px; }
+.modal header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.modal header h2 { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.2; }
+.modal-htext { flex: 1; min-width: 0; }
+.modal-sub { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.modal-icon { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-weak); color: var(--accent); }
+.modal-icon svg { width: 19px; height: 19px; }
+.modal-x { flex: none; appearance: none; background: transparent; border: none; cursor: pointer; color: var(--ink-3); width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; }
+.modal-x:hover { background: var(--surface-3); color: var(--ink); }
+.modal-x svg { width: 18px; height: 18px; }
+.modal .body { padding: 18px; }
 .modal footer { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--surface); }
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
@@ -299,17 +306,40 @@ tbody tr:hover { background: var(--surface-2); }
 /* Usuários */
 .role.user { background: var(--chumbo); color: var(--branco); }
 .role.viewer { background: #2563EB; color: #FFFFFF; }
-.userlist { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+/* Listas de gerenciamento (Carteiras / Áreas) */
+.manage-add { display: flex; gap: 8px; margin-bottom: 14px; }
+.manage-add input { flex: 1; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; }
+.manage-count { font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; }
+.manage-empty { padding: 22px 14px; text-align: center; color: var(--ink-3); font-size: 13px; background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); }
+.manage-list { display: flex; flex-direction: column; gap: 7px; }
+.manage-row { display: flex; align-items: center; gap: 11px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 9px 9px 11px; transition: border-color .12s; }
+.manage-row:hover { border-color: var(--border-strong); }
+.manage-row-icon { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-3); color: var(--ink-3); }
+.manage-row-icon svg { width: 16px; height: 16px; }
+.manage-row-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manage-del { flex: none; appearance: none; background: transparent; border: none; cursor: pointer; color: var(--ink-3); width: 32px; height: 32px; border-radius: 7px; display: grid; place-items: center; }
+.manage-del:hover { background: var(--vermelho-bg); color: var(--vermelho); }
+.manage-del svg { width: 16px; height: 16px; }
+.modal-search { margin-bottom: 12px; }
+
+/* Lista de usuários */
+.userlist { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
 .userrow {
-  display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  display: flex; align-items: center; gap: 11px;
   background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 10px 10px 10px 13px;
+  border-radius: var(--radius-sm); padding: 10px 10px 10px 11px; transition: border-color .12s;
 }
-.uinfo { min-width: 0; }
+.userrow:hover { border-color: var(--border-strong); }
+.uavatar { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; padding: 0; }
+.uinfo { flex: 1; min-width: 0; }
 .uname { font-size: 13.5px; font-weight: 600; color: var(--ink); }
 .uname .umuted { font-weight: 400; color: var(--ink-3); font-size: 12px; }
 .utags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
 .uactions { display: flex; gap: 6px; flex: none; }
+.iconbtn2 { appearance: none; background: var(--surface); border: 1px solid var(--border); cursor: pointer; color: var(--ink-2); width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; transition: border-color .12s, color .12s, background .12s; }
+.iconbtn2:hover { border-color: var(--border-strong); color: var(--ink); }
+.iconbtn2.danger:hover { background: var(--vermelho-bg); border-color: var(--vermelho); color: var(--vermelho); }
+.iconbtn2 svg { width: 16px; height: 16px; }
 .checkgroup-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 12px; color: var(--ink-3); }
 .checkgroup-actions { display: inline-flex; gap: 12px; }
 .linkbtn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; color: var(--link); }
