@@ -14,6 +14,46 @@ export interface HistoricoEntry {
   by: string | null;
 }
 
+/** Etapa (marco) da implantação: feito (sim/não) + previsão quando pendente. */
+export interface Marco {
+  feito: boolean;
+  previsao: string;
+}
+
+export type MarcoKey = "importacao" | "emissao" | "acertoViagem";
+
+/** Definição das etapas, na ordem em que são reveladas. */
+export const MARCOS: { key: MarcoKey; label: string; short: string }[] = [
+  { key: "importacao", label: "Importaram dados?", short: "Importação" },
+  { key: "emissao", label: "Fizeram teste de emissão?", short: "Emissão" },
+  { key: "acertoViagem", label: "Fizeram teste de acerto de viagem?", short: "Acerto de viagem" },
+];
+
+export type Marcos = Record<MarcoKey, Marco>;
+
+export function emptyMarcos(): Marcos {
+  return {
+    importacao: { feito: false, previsao: "" },
+    emissao: { feito: false, previsao: "" },
+    acertoViagem: { feito: false, previsao: "" },
+  };
+}
+
+/** Garante o formato das etapas (preenche defaults; aceita registros antigos sem o campo). */
+export function normalizeMarcos(v: unknown): Marcos {
+  const out = emptyMarcos();
+  if (v && typeof v === "object") {
+    for (const { key } of MARCOS) {
+      const m = (v as Record<string, unknown>)[key];
+      if (m && typeof m === "object") {
+        const mm = m as Record<string, unknown>;
+        out[key] = { feito: mm.feito === true, previsao: String(mm.previsao ?? "").trim() };
+      }
+    }
+  }
+  return out;
+}
+
 export interface Implantacao {
   id: string;
   cliente: string;
@@ -24,6 +64,7 @@ export interface Implantacao {
   apoio: "sim" | "nao";
   areaId: string;
   ticket: string;
+  marcos: Marcos;
   createdAt: number;
   updatedAt: number;
   updatedBy: string | null;
@@ -90,4 +131,5 @@ export const EDITABLE_FIELDS = [
   "apoio",
   "areaId",
   "ticket",
+  "marcos",
 ] as const;

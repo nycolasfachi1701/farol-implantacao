@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { redis, KEYS, isConfigured } from "./redis";
-import { hashPassword } from "./password";
+import { hashPassword, verifyPassword } from "./password";
 import {
   Area,
   Carteira,
@@ -12,6 +12,8 @@ import {
   UserPublic,
   Role,
   Session,
+  emptyMarcos,
+  normalizeMarcos,
 } from "./types";
 
 export async function getAll(): Promise<{ areas: Area[]; implantacoes: Implantacao[] }> {
@@ -62,6 +64,7 @@ export async function createImplantacao(
     apoio: input.apoio === "sim" ? "sim" : "nao",
     areaId: String(input.areaId || ""),
     ticket: String(input.ticket || "").trim(),
+    marcos: normalizeMarcos(input.marcos),
     createdAt: now,
     updatedAt: now,
     updatedBy: authorName,
@@ -91,6 +94,7 @@ export async function updateImplantacao(
   if (input.apoio !== undefined) next.apoio = input.apoio === "sim" ? "sim" : "nao";
   if (input.areaId !== undefined) next.areaId = String(input.areaId);
   if (input.ticket !== undefined) next.ticket = String(input.ticket).trim();
+  next.marcos = normalizeMarcos(input.marcos !== undefined ? input.marcos : existing.marcos);
 
   const historico: HistoricoEntry[] = Array.isArray(existing.historico)
     ? existing.historico.slice(-14)
@@ -290,6 +294,23 @@ export async function updateUser(
   return toPublic(next);
 }
 
+/** Troca a própria senha: valida a senha atual antes de gravar a nova. */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const map = await getUsersRaw();
+  const user = map[userId];
+  if (!user) throw new Error("NOT_FOUND");
+  if (!(await verifyPassword(currentPassword, user.passwordHash))) {
+    throw new Error("WRONG_PASSWORD");
+  }
+  if (newPassword.length < 4) throw new Error("PASSWORD_WEAK");
+  user.passwordHash = await hashPassword(newPassword);
+  await redis.hset(KEYS.users, { [userId]: user });
+}
+
 export async function deleteUser(id: string): Promise<void> {
   const map = await getUsersRaw();
   const existing = map[id];
@@ -375,7 +396,8 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
     situacao: string,
     apoio: "sim" | "nao",
     areaId: string,
-    ticket: string
+    ticket: string,
+    marcos: Implantacao["marcos"] = emptyMarcos()
   ): Implantacao => ({
     id: randomUUID(),
     cliente,
@@ -386,6 +408,7 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
     apoio,
     areaId,
     ticket,
+    marcos,
     createdAt: now,
     updatedAt: now,
     updatedBy: authorName,
@@ -401,7 +424,12 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       "Integração do TMS parada: cliente não liberou acesso ao ERP. Reunião de desbloqueio agendada p/ sexta.",
       "sim",
       aProd.id,
-      "IMP-1042"
+      "IMP-1042",
+      {
+        importacao: { feito: false, previsao: "25/10" },
+        emissao: { feito: false, previsao: "" },
+        acertoViagem: { feito: false, previsao: "" },
+      }
     ),
     imp(
       "Log Beta Cargas",
@@ -411,7 +439,12 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       "Treinamento de emissão em andamento; pendência de 2 usuários sem perfil cadastrado.",
       "sim",
       aCS.id,
-      "IMP-1050"
+      "IMP-1050",
+      {
+        importacao: { feito: true, previsao: "" },
+        emissao: { feito: false, previsao: "20/10" },
+        acertoViagem: { feito: false, previsao: "" },
+      }
     ),
     imp(
       "Carga Sul Express",
@@ -421,7 +454,12 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       "Go-live concluído. Acompanhamento pós-implantação na 2ª semana, sem incidentes.",
       "nao",
       "",
-      "IMP-0998"
+      "IMP-0998",
+      {
+        importacao: { feito: true, previsao: "" },
+        emissao: { feito: true, previsao: "" },
+        acertoViagem: { feito: true, previsao: "" },
+      }
     ),
     imp(
       "Rodoviário Norte",

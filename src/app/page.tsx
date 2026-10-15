@@ -8,6 +8,10 @@ import {
   Farol,
   FAROIS,
   FAROL_LABEL,
+  MARCOS,
+  Marcos,
+  MarcoKey,
+  normalizeMarcos,
   Role,
   Session,
   StateResponse,
@@ -43,6 +47,42 @@ function ticketLabel(v: string): string {
   }
 }
 
+/* ---------- helpers de etapas (marcos) ---------- */
+type MarcoStatus = "feito" | "previsto" | "pendente";
+const MARCO_ABBR: Record<MarcoKey, string> = {
+  importacao: "Importação",
+  emissao: "Emissão",
+  acertoViagem: "Acerto viagem",
+};
+function marcoStatus(m: { feito: boolean; previsao: string }): MarcoStatus {
+  if (m.feito) return "feito";
+  if ((m.previsao || "").trim()) return "previsto";
+  return "pendente";
+}
+function MarcosMini({ marcos }: { marcos: Marcos }) {
+  return (
+    <div className="marcos-mini">
+      {MARCOS.map(({ key, short }) => {
+        const m = marcos[key];
+        const st = marcoStatus(m);
+        const title =
+          st === "feito"
+            ? `${short}: concluído`
+            : st === "previsto"
+            ? `${short}: previsão ${m.previsao}`
+            : `${short}: pendente`;
+        return (
+          <span key={key} className={`mm ${st}`} title={title}>
+            <span className="mm-dot" />
+            {MARCO_ABBR[key]}
+            {st === "previsto" && <span className="mm-prev">· {m.previsao}</span>}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 type Filter = { farol: Farol | ""; areaId: string; resp: string; carteira: string; q: string };
 const EMPTY_FILTER: Filter = { farol: "", areaId: "", resp: "", carteira: "", q: "" };
 
@@ -72,6 +112,7 @@ export default function Page() {
   const [carteirasOpen, setCarteirasOpen] = useState(false);
   const [usersOpen, setUsersOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
 
   const isLogged = !!session;
   const isAdmin = session?.role === "admin";
@@ -243,6 +284,19 @@ export default function Page() {
                 {session && (
                   <span className={`role ${session.role}`}>{ROLE_LABEL[session.role]}</span>
                 )}
+                <button
+                  className="iconbtn"
+                  title="Alterar minha senha"
+                  aria-label="Alterar minha senha"
+                  onClick={() => setPwdOpen(true)}
+                  style={{ color: "var(--cinza)" }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    <rect x="4" y="11" width="16" height="10" rx="2" />
+                    <circle cx="12" cy="16" r="1" />
+                  </svg>
+                </button>
                 <button className="iconbtn" title="Sair" onClick={logout} style={{ color: "var(--cinza)" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
@@ -553,7 +607,103 @@ export default function Page() {
           onClose={() => setReportOpen(false)}
         />
       )}
+
+      {pwdOpen && (
+        <ChangePasswordModal
+          username={session?.username || ""}
+          onClose={() => setPwdOpen(false)}
+          onDone={() => {
+            setPwdOpen(false);
+            showToast("Senha alterada");
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function ChangePasswordModal({
+  username,
+  onClose,
+  onDone,
+}: {
+  username: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (!current || !next) {
+      setErr("Preencha a senha atual e a nova.");
+      return;
+    }
+    if (next.length < 4) {
+      setErr("A nova senha precisa ter ao menos 4 caracteres.");
+      return;
+    }
+    if (next !== confirm) {
+      setErr("A confirmação não confere com a nova senha.");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      await api("/api/password", { method: "POST", body: JSON.stringify({ current, next }) });
+      onDone();
+    } catch (e: any) {
+      setErr(e.message || "Não foi possível alterar a senha.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title="Alterar minha senha"
+      subtitle={username ? `@${username}` : undefined}
+      icon={
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          <rect x="4" y="11" width="16" height="10" rx="2" />
+          <circle cx="12" cy="16" r="1" />
+        </svg>
+      }
+      width={420}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn ghost" onClick={onClose}>
+            Cancelar
+          </button>
+          <button className="btn primary" onClick={save} disabled={busy}>
+            {busy ? "Salvando…" : "Alterar senha"}
+          </button>
+        </>
+      }
+    >
+      <div className="field">
+        <label>Senha atual</label>
+        <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoFocus />
+      </div>
+      <div className="field">
+        <label>Nova senha</label>
+        <input type="password" value={next} onChange={(e) => setNext(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>Confirmar nova senha</label>
+        <input
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+        />
+      </div>
+      {err && <p className="err">{err}</p>}
+    </Modal>
   );
 }
 
@@ -640,24 +790,39 @@ function ReportView({
                 <th>Responsável</th>
                 <th>Farol</th>
                 <th>Situação / Ponto de atenção</th>
+                <th>Etapas</th>
                 <th>Área</th>
                 <th>Ticket</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.cliente || "—"}</td>
-                  <td>{r.carteira || "—"}</td>
-                  <td>{r.responsavel || "—"}</td>
-                  <td className="nowrap">
-                    <span className={`rs-dot ${r.farol}`} /> {FAROL_LABEL[r.farol]}
-                  </td>
-                  <td>{r.situacao || "—"}</td>
-                  <td>{areaById[r.areaId]?.nome || "—"}</td>
-                  <td>{r.ticket ? (isTicketUrl(r.ticket) ? ticketLabel(r.ticket) : r.ticket) : "—"}</td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const mk = normalizeMarcos(r.marcos);
+                return (
+                  <tr key={r.id}>
+                    <td>{r.cliente || "—"}</td>
+                    <td>{r.carteira || "—"}</td>
+                    <td>{r.responsavel || "—"}</td>
+                    <td className="nowrap">
+                      <span className={`rs-dot ${r.farol}`} /> {FAROL_LABEL[r.farol]}
+                    </td>
+                    <td>{r.situacao || "—"}</td>
+                    <td className="report-marcos">
+                      {MARCOS.map(({ key, short }) => {
+                        const m = mk[key];
+                        return (
+                          <span key={key} className="rm-item">
+                            {m.feito ? "✓" : m.previsao ? "◷" : "○"} {short}
+                            {!m.feito && m.previsao ? ` (${m.previsao})` : ""}
+                          </span>
+                        );
+                      })}
+                    </td>
+                    <td>{areaById[r.areaId]?.nome || "—"}</td>
+                    <td>{r.ticket ? (isTicketUrl(r.ticket) ? ticketLabel(r.ticket) : r.ticket) : "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -758,6 +923,7 @@ function Row({
         )}
       </td>
       <td>
+        <MarcosMini marcos={normalizeMarcos(imp.marcos)} />
         <div className={`situacao ${imp.situacao ? "" : "muted"}`}>{imp.situacao || "—"}</div>
         {imp.updatedBy && (
           <div className="meta">atualizado por {imp.updatedBy}</div>
@@ -1004,8 +1170,13 @@ function EditModal({
   const [apoio, setApoio] = useState<"sim" | "nao">(base?.apoio || "nao");
   const [areaId, setAreaId] = useState(base?.areaId || "");
   const [farol, setFarol] = useState<Farol>(base?.farol || "amarelo");
+  const [marcos, setMarcos] = useState<Marcos>(() => normalizeMarcos(base?.marcos));
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  function setMarco(key: MarcoKey, patch: Partial<Marcos[MarcoKey]>) {
+    setMarcos((m) => ({ ...m, [key]: { ...m[key], ...patch } }));
+  }
 
   async function save() {
     if (!cliente.trim()) {
@@ -1018,7 +1189,7 @@ function EditModal({
     }
     setBusy(true);
     setErr(null);
-    const payload = { cliente, carteira, responsavel, ticket, situacao, apoio, areaId, farol };
+    const payload = { cliente, carteira, responsavel, ticket, situacao, apoio, areaId, farol, marcos };
     try {
       if (isNew) {
         await api("/api/implantacoes", { method: "POST", body: JSON.stringify(payload) });
@@ -1114,6 +1285,38 @@ function EditModal({
           onChange={(e) => setSituacao(e.target.value)}
           placeholder="O que está acontecendo, próximos passos, bloqueios…"
         />
+      </div>
+      <div className="field">
+        <label>Etapas da implantação</label>
+        <div className="marcos-edit">
+          {MARCOS.map(({ key, label }, i) => {
+            const prev = i > 0 ? MARCOS[i - 1].key : null;
+            const visible = i === 0 || (prev !== null && marcos[prev].feito);
+            if (!visible) return null;
+            const m = marcos[key];
+            return (
+              <div className="marco-edit-row" key={key}>
+                <label className="marco-toggle">
+                  <input
+                    type="checkbox"
+                    checked={m.feito}
+                    onChange={(e) => setMarco(key, { feito: e.target.checked })}
+                  />
+                  <span>{label}</span>
+                </label>
+                {!m.feito && (
+                  <input
+                    className="marco-prev-input"
+                    value={m.previsao}
+                    onChange={(e) => setMarco(key, { previsao: e.target.value })}
+                    placeholder="Previsão (ex.: 20/10)"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <span className="hint">Marque “feito” para liberar a próxima etapa.</span>
       </div>
       <div className="grid2">
         <div className="field">
