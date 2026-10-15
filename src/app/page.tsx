@@ -59,6 +59,63 @@ function marcoStatus(m: { feito: boolean; previsao: string }): MarcoStatus {
   if ((m.previsao || "").trim()) return "previsto";
   return "pendente";
 }
+/** Converte "dd/mm/aaaa" para "aaaa-mm-dd" (vazio se não for data válida). */
+function brToIso(v: string): string {
+  const m = v.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return "";
+  const [, d, mo, y] = m;
+  return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
+/** Campo de previsão: texto livre + botão de calendário (seletor de data). */
+function PrevisaoInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  function openCalendar() {
+    const el = dateRef.current;
+    if (!el) return;
+    try {
+      // showPicker() abre o calendário nativo nos navegadores modernos.
+      (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.();
+    } catch {
+      el.focus();
+    }
+  }
+
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const iso = e.target.value; // aaaa-mm-dd
+    if (!iso) return;
+    const [y, m, d] = iso.split("-");
+    onChange(`${d}/${m}/${y}`);
+  }
+
+  return (
+    <div className="prev-field">
+      <input
+        className="marco-prev-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Previsão (data ou texto)"
+      />
+      <button type="button" className="prev-cal" title="Escolher data no calendário" onClick={openCalendar}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      </button>
+      <input
+        ref={dateRef}
+        type="date"
+        className="prev-date-hidden"
+        value={brToIso(value)}
+        onChange={onPick}
+        tabIndex={-1}
+        aria-hidden
+      />
+    </div>
+  );
+}
+
 function MarcosMini({ marcos }: { marcos: Marcos }) {
   return (
     <div className="marcos-mini">
@@ -1305,11 +1362,9 @@ function EditModal({
                   <span>{label}</span>
                 </label>
                 {!m.feito && (
-                  <input
-                    className="marco-prev-input"
+                  <PrevisaoInput
                     value={m.previsao}
-                    onChange={(e) => setMarco(key, { previsao: e.target.value })}
-                    placeholder="Previsão (ex.: 20/10)"
+                    onChange={(v) => setMarco(key, { previsao: v })}
                   />
                 )}
               </div>
