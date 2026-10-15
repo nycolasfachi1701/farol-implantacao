@@ -93,8 +93,16 @@ function brToIso(v: string): string {
   return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
-/** Campo de previsão: texto livre + botão de calendário (seletor de data). */
-function PrevisaoInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/** Campo de data (previsão/realização): texto com máscara + botão de calendário. */
+function PrevisaoInput({
+  value,
+  onChange,
+  placeholder = "dd/mm/aaaa",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
   const dateRef = useRef<HTMLInputElement>(null);
 
   function openCalendar() {
@@ -123,7 +131,7 @@ function PrevisaoInput({ value, onChange }: { value: string; onChange: (v: strin
         onChange={(e) => onChange(maskDate(e.target.value))}
         inputMode="numeric"
         maxLength={10}
-        placeholder="dd/mm/aaaa"
+        placeholder={placeholder}
       />
       <button type="button" className="prev-cal" title="Escolher data no calendário" onClick={openCalendar}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -152,7 +160,7 @@ function MarcosMini({ marcos }: { marcos: Marcos }) {
         const st = marcoStatus(m);
         const title =
           st === "feito"
-            ? `${short}: concluído`
+            ? `${short}: concluído${m.previsao ? " em " + m.previsao : ""}`
             : st === "previsto"
             ? `${short}: previsão ${m.previsao}`
             : `${short}: pendente`;
@@ -160,7 +168,7 @@ function MarcosMini({ marcos }: { marcos: Marcos }) {
           <span key={key} className={`mm ${st}`} title={title}>
             <span className="mm-dot" />
             {MARCO_ABBR[key]}
-            {st === "previsto" && <span className="mm-prev">· {m.previsao}</span>}
+            {m.previsao && <span className="mm-prev">· {m.previsao}</span>}
             {key === "importacao" && m.feito && m.tipo && (
               <span className="mm-prev">· {IMPORT_TIPO_LABEL[m.tipo]}</span>
             )}
@@ -901,7 +909,7 @@ function ReportView({
                         return (
                           <span key={key} className="rm-item">
                             {m.feito ? "✓" : m.previsao ? "◷" : "○"} {short}
-                            {!m.feito && m.previsao ? ` (${m.previsao})` : ""}
+                            {m.previsao ? ` (${m.previsao})` : ""}
                             {key === "importacao" && m.feito && m.tipo
                               ? ` (${IMPORT_TIPO_LABEL[m.tipo]})`
                               : ""}
@@ -1399,7 +1407,7 @@ function EditModal({
                   />
                   <span>{label}</span>
                 </label>
-                {key === "importacao" && m.feito ? (
+                {key === "importacao" && m.feito && (
                   <select
                     className="marco-tipo"
                     value={m.tipo || ""}
@@ -1409,18 +1417,18 @@ function EditModal({
                     <option value="cadastros">Cadastros</option>
                     <option value="xml">XML</option>
                   </select>
-                ) : !m.feito ? (
-                  <PrevisaoInput
-                    value={m.previsao}
-                    onChange={(v) => setMarco(key, { previsao: v })}
-                  />
-                ) : null}
+                )}
+                <PrevisaoInput
+                  value={m.previsao}
+                  onChange={(v) => setMarco(key, { previsao: v })}
+                  placeholder={m.feito ? "Realizado em" : "Previsão"}
+                />
               </div>
             );
           })}
         </div>
         <span className="hint">
-          As etapas são independentes — marque cada uma conforme for concluída.
+          As etapas são independentes. A data é a previsão (pendente) ou a data de realização (concluída).
         </span>
       </div>
       <div className="grid2">
