@@ -47,6 +47,22 @@ function ticketLabel(v: string): string {
   }
 }
 
+/** Formata um timestamp como "dd/mm/aaaa HH:MM" no fuso do navegador. */
+function formatDateTime(ts?: number): string {
+  if (!ts) return "";
+  try {
+    return new Date(ts).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
 /* ---------- helpers de etapas (marcos) ---------- */
 type MarcoStatus = "feito" | "previsto" | "pendente";
 const MARCO_ABBR: Record<MarcoKey, string> = {
@@ -59,6 +75,14 @@ function marcoStatus(m: { feito: boolean; previsao: string }): MarcoStatus {
   if ((m.previsao || "").trim()) return "previsto";
   return "pendente";
 }
+/** Aplica máscara de data dd/mm/aaaa enquanto o usuário digita (só dígitos). */
+function maskDate(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
 /** Converte "dd/mm/aaaa" para "aaaa-mm-dd" (vazio se não for data válida). */
 function brToIso(v: string): string {
   const m = v.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -94,8 +118,10 @@ function PrevisaoInput({ value, onChange }: { value: string; onChange: (v: strin
       <input
         className="marco-prev-input"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Previsão (data ou texto)"
+        onChange={(e) => onChange(maskDate(e.target.value))}
+        inputMode="numeric"
+        maxLength={10}
+        placeholder="dd/mm/aaaa"
       />
       <button type="button" className="prev-cal" title="Escolher data no calendário" onClick={openCalendar}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -982,8 +1008,15 @@ function Row({
       <td>
         <MarcosMini marcos={normalizeMarcos(imp.marcos)} />
         <div className={`situacao ${imp.situacao ? "" : "muted"}`}>{imp.situacao || "—"}</div>
-        {imp.updatedBy && (
-          <div className="meta">atualizado por {imp.updatedBy}</div>
+        {(imp.updatedAt || imp.updatedBy) && (
+          <div className="upd" title={`Atualizado em ${formatDateTime(imp.updatedAt)}${imp.updatedBy ? " por " + imp.updatedBy : ""}`}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            <span className="upd-when">{formatDateTime(imp.updatedAt)}</span>
+            {imp.updatedBy && <span className="upd-by">· por {imp.updatedBy}</span>}
+          </div>
         )}
       </td>
       <td>
