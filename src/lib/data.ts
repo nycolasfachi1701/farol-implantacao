@@ -441,7 +441,7 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       aCS.id,
       "IMP-1050",
       {
-        importacao: { feito: true, previsao: "" },
+        importacao: { feito: true, previsao: "", tipo: "xml" },
         emissao: { feito: false, previsao: "20/10" },
         acertoViagem: { feito: false, previsao: "" },
       }
@@ -456,7 +456,7 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       "",
       "IMP-0998",
       {
-        importacao: { feito: true, previsao: "" },
+        importacao: { feito: true, previsao: "", tipo: "cadastros" },
         emissao: { feito: true, previsao: "" },
         acertoViagem: { feito: true, previsao: "" },
       }

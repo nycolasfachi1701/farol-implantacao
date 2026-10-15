@@ -14,10 +14,20 @@ export interface HistoricoEntry {
   by: string | null;
 }
 
+/** Tipo de importação realizada (só se aplica à etapa de importação). */
+export type ImportTipo = "" | "cadastros" | "xml";
+
+export const IMPORT_TIPO_LABEL: Record<Exclude<ImportTipo, "">, string> = {
+  cadastros: "Cadastros",
+  xml: "XML",
+};
+
 /** Etapa (marco) da implantação: feito (sim/não) + previsão quando pendente. */
 export interface Marco {
   feito: boolean;
   previsao: string;
+  /** Tipo de importação — usado apenas na etapa "importacao". */
+  tipo?: ImportTipo;
 }
 
 export type MarcoKey = "importacao" | "emissao" | "acertoViagem";
@@ -33,7 +43,7 @@ export type Marcos = Record<MarcoKey, Marco>;
 
 export function emptyMarcos(): Marcos {
   return {
-    importacao: { feito: false, previsao: "" },
+    importacao: { feito: false, previsao: "", tipo: "" },
     emissao: { feito: false, previsao: "" },
     acertoViagem: { feito: false, previsao: "" },
   };
@@ -50,6 +60,9 @@ export function normalizeMarcos(v: unknown): Marcos {
         out[key] = { feito: mm.feito === true, previsao: String(mm.previsao ?? "").trim() };
       }
     }
+    // Tipo de importação (somente na etapa de importação).
+    const t = ((v as Record<string, unknown>).importacao as Record<string, unknown> | undefined)?.tipo;
+    out.importacao.tipo = t === "cadastros" || t === "xml" ? t : "";
   }
   return out;
 }

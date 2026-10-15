@@ -11,6 +11,8 @@ import {
   MARCOS,
   Marcos,
   MarcoKey,
+  ImportTipo,
+  IMPORT_TIPO_LABEL,
   normalizeMarcos,
   Role,
   Session,
@@ -159,6 +161,9 @@ function MarcosMini({ marcos }: { marcos: Marcos }) {
             <span className="mm-dot" />
             {MARCO_ABBR[key]}
             {st === "previsto" && <span className="mm-prev">· {m.previsao}</span>}
+            {key === "importacao" && m.feito && m.tipo && (
+              <span className="mm-prev">· {IMPORT_TIPO_LABEL[m.tipo]}</span>
+            )}
           </span>
         );
       })}
@@ -897,6 +902,9 @@ function ReportView({
                           <span key={key} className="rm-item">
                             {m.feito ? "✓" : m.previsao ? "◷" : "○"} {short}
                             {!m.feito && m.previsao ? ` (${m.previsao})` : ""}
+                            {key === "importacao" && m.feito && m.tipo
+                              ? ` (${IMPORT_TIPO_LABEL[m.tipo]})`
+                              : ""}
                           </span>
                         );
                       })}
@@ -1379,10 +1387,7 @@ function EditModal({
       <div className="field">
         <label>Etapas da implantação</label>
         <div className="marcos-edit">
-          {MARCOS.map(({ key, label }, i) => {
-            const prev = i > 0 ? MARCOS[i - 1].key : null;
-            const visible = i === 0 || (prev !== null && marcos[prev].feito);
-            if (!visible) return null;
+          {MARCOS.map(({ key, label }) => {
             const m = marcos[key];
             return (
               <div className="marco-edit-row" key={key}>
@@ -1394,17 +1399,29 @@ function EditModal({
                   />
                   <span>{label}</span>
                 </label>
-                {!m.feito && (
+                {key === "importacao" && m.feito ? (
+                  <select
+                    className="marco-tipo"
+                    value={m.tipo || ""}
+                    onChange={(e) => setMarco(key, { tipo: e.target.value as ImportTipo })}
+                  >
+                    <option value="">Tipo de importação…</option>
+                    <option value="cadastros">Cadastros</option>
+                    <option value="xml">XML</option>
+                  </select>
+                ) : !m.feito ? (
                   <PrevisaoInput
                     value={m.previsao}
                     onChange={(v) => setMarco(key, { previsao: v })}
                   />
-                )}
+                ) : null}
               </div>
             );
           })}
         </div>
-        <span className="hint">Marque “feito” para liberar a próxima etapa.</span>
+        <span className="hint">
+          As etapas são independentes — marque cada uma conforme for concluída.
+        </span>
       </div>
       <div className="grid2">
         <div className="field">
