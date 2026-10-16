@@ -247,7 +247,7 @@ tbody tr:hover { background: var(--surface-2); }
 .marco-edit-row .marco-toggle { display: inline-flex; align-items: center; gap: 9px; margin: 0; cursor: pointer; font-size: 13.5px; font-weight: 500; color: var(--ink); flex: 1; min-width: 150px; }
 .marco-edit-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); margin: 0; flex: none; }
 .prev-field { display: inline-flex; align-items: center; gap: 6px; flex: none; position: relative; }
-.marco-edit-row input.marco-prev-input { width: 140px; flex: none; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; }
+.marco-edit-row input.marco-prev-input { width: 172px; flex: none; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; }
 .prev-cal { flex: none; width: 34px; height: 34px; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; transition: border-color .12s, color .12s; }
 .prev-cal:hover { border-color: var(--border-strong); color: var(--ink); }
 .prev-cal svg { width: 16px; height: 16px; }

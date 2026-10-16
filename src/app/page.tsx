@@ -1448,7 +1448,7 @@ function EditModal({
                 <PrevisaoInput
                   value={m.previsao}
                   onChange={(v) => setMarco(key, { previsao: v })}
-                  placeholder={m.feito ? "Realizado em" : "Previsão"}
+                  placeholder={m.feito ? "Realizado dd/mm/aaaa" : "Previsão dd/mm/aaaa"}
                 />
               </div>
             );
