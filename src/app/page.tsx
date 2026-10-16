@@ -12,7 +12,9 @@ import {
   Marcos,
   MarcoKey,
   ImportTipo,
+  IMPORT_TIPOS,
   IMPORT_TIPO_LABEL,
+  tiposLabel,
   normalizeMarcos,
   Role,
   Session,
@@ -169,8 +171,8 @@ function MarcosMini({ marcos }: { marcos: Marcos }) {
             <span className="mm-dot" />
             {MARCO_ABBR[key]}
             {m.previsao && <span className="mm-prev">· {m.previsao}</span>}
-            {key === "importacao" && m.feito && m.tipo && (
-              <span className="mm-prev">· {IMPORT_TIPO_LABEL[m.tipo]}</span>
+            {key === "importacao" && m.feito && m.tipos && m.tipos.length > 0 && (
+              <span className="mm-prev">· {tiposLabel(m.tipos)}</span>
             )}
           </span>
         );
@@ -916,8 +918,8 @@ function ReportView({
                           <span key={key} className="rm-item">
                             {m.feito ? "✓" : m.previsao ? "◷" : "○"} {short}
                             {m.previsao ? ` (${m.previsao})` : ""}
-                            {key === "importacao" && m.feito && m.tipo
-                              ? ` (${IMPORT_TIPO_LABEL[m.tipo]})`
+                            {key === "importacao" && m.feito && m.tipos && m.tipos.length > 0
+                              ? ` (${tiposLabel(m.tipos)})`
                               : ""}
                           </span>
                         );
@@ -1296,6 +1298,14 @@ function EditModal({
     setMarcos((m) => ({ ...m, [key]: { ...m[key], ...patch } }));
   }
 
+  function toggleTipo(key: MarcoKey, t: ImportTipo) {
+    setMarcos((m) => {
+      const cur = m[key].tipos || [];
+      const tipos = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t];
+      return { ...m, [key]: { ...m[key], tipos } };
+    });
+  }
+
   async function save() {
     if (!cliente.trim()) {
       setErr("Informe o cliente.");
@@ -1421,16 +1431,19 @@ function EditModal({
                   <span>{label}</span>
                 </label>
                 {key === "importacao" && m.feito && (
-                  <select
-                    className="marco-tipo"
-                    value={m.tipo || ""}
-                    onChange={(e) => setMarco(key, { tipo: e.target.value as ImportTipo })}
-                  >
-                    <option value="">Tipo de importação…</option>
-                    <option value="cadastros">Cadastros</option>
-                    <option value="xml">XML</option>
-                    <option value="ambos">Ambos</option>
-                  </select>
+                  <div className="marco-tipos">
+                    <span className="marco-tipos-label">Tipo:</span>
+                    {IMPORT_TIPOS.map((t) => (
+                      <label key={t} className="tipo-check">
+                        <input
+                          type="checkbox"
+                          checked={(m.tipos || []).includes(t)}
+                          onChange={() => toggleTipo(key, t)}
+                        />
+                        <span>{IMPORT_TIPO_LABEL[t]}</span>
+                      </label>
+                    ))}
+                  </div>
                 )}
                 <PrevisaoInput
                   value={m.previsao}
@@ -1566,7 +1579,9 @@ function ExtratoModal({
               <span className="ext-marco-status">
                 {st === "feito" ? "Concluído" : st === "previsto" ? "Previsto" : "Pendente"}
                 {m.previsao ? ` · ${m.previsao}` : ""}
-                {key === "importacao" && m.feito && m.tipo ? ` · ${IMPORT_TIPO_LABEL[m.tipo]}` : ""}
+                {key === "importacao" && m.feito && m.tipos && m.tipos.length > 0
+                  ? ` · ${tiposLabel(m.tipos)}`
+                  : ""}
               </span>
             </div>
           );

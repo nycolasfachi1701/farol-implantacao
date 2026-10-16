@@ -22,20 +22,28 @@ export interface HistoricoSituacao {
 }
 
 /** Tipo de importação realizada (só se aplica à etapa de importação). */
-export type ImportTipo = "" | "cadastros" | "xml" | "ambos";
+export type ImportTipo = "cadastros" | "xml";
 
-export const IMPORT_TIPO_LABEL: Record<Exclude<ImportTipo, "">, string> = {
+export const IMPORT_TIPOS: ImportTipo[] = ["cadastros", "xml"];
+
+export const IMPORT_TIPO_LABEL: Record<ImportTipo, string> = {
   cadastros: "Cadastros",
   xml: "XML",
-  ambos: "Ambos",
 };
+
+/** Rótulo resumido para uma lista de tipos ("Ambos" quando os dois estão marcados). */
+export function tiposLabel(tipos?: ImportTipo[]): string {
+  if (!tipos || tipos.length === 0) return "";
+  if (tipos.length >= IMPORT_TIPOS.length) return "Ambos";
+  return tipos.map((t) => IMPORT_TIPO_LABEL[t]).join(", ");
+}
 
 /** Etapa (marco) da implantação: feito (sim/não) + previsão quando pendente. */
 export interface Marco {
   feito: boolean;
   previsao: string;
-  /** Tipo de importação — usado apenas na etapa "importacao". */
-  tipo?: ImportTipo;
+  /** Tipos de importação (um ou mais) — usado apenas na etapa "importacao". */
+  tipos?: ImportTipo[];
 }
 
 export type MarcoKey = "importacao" | "emissao" | "acertoViagem";
@@ -51,7 +59,7 @@ export type Marcos = Record<MarcoKey, Marco>;
 
 export function emptyMarcos(): Marcos {
   return {
-    importacao: { feito: false, previsao: "", tipo: "" },
+    importacao: { feito: false, previsao: "", tipos: [] },
     emissao: { feito: false, previsao: "" },
     acertoViagem: { feito: false, previsao: "" },
   };
@@ -68,9 +76,18 @@ export function normalizeMarcos(v: unknown): Marcos {
         out[key] = { feito: mm.feito === true, previsao: String(mm.previsao ?? "").trim() };
       }
     }
-    // Tipo de importação (somente na etapa de importação).
-    const t = ((v as Record<string, unknown>).importacao as Record<string, unknown> | undefined)?.tipo;
-    out.importacao.tipo = t === "cadastros" || t === "xml" || t === "ambos" ? t : "";
+    // Tipos de importação (somente na etapa de importação). Aceita o formato
+    // novo (lista) e o antigo (valor único, incluindo "ambos").
+    const impObj = (v as Record<string, unknown>).importacao as Record<string, unknown> | undefined;
+    const valid = (x: unknown): x is ImportTipo => x === "cadastros" || x === "xml";
+    let tipos: ImportTipo[] = [];
+    if (Array.isArray(impObj?.tipos)) {
+      tipos = (impObj!.tipos as unknown[]).filter(valid);
+    } else if (typeof impObj?.tipo === "string") {
+      if (impObj.tipo === "ambos") tipos = ["cadastros", "xml"];
+      else if (valid(impObj.tipo)) tipos = [impObj.tipo];
+    }
+    out.importacao.tipos = [...new Set(tipos)];
   }
   return out;
 }
