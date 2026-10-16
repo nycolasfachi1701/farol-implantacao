@@ -8,6 +8,7 @@ import {
   Farol,
   EDITABLE_FIELDS,
   HistoricoEntry,
+  HistoricoSituacao,
   User,
   UserPublic,
   Role,
@@ -54,13 +55,14 @@ export async function createImplantacao(
 
   const now = Date.now();
   const farol = sanitizeFarol(input.farol);
+  const situacao = String(input.situacao || "").trim();
   const imp: Implantacao = {
     id: randomUUID(),
     cliente,
     carteira: String(input.carteira || "").trim(),
     responsavel: String(input.responsavel || "").trim(),
     farol,
-    situacao: String(input.situacao || "").trim(),
+    situacao,
     apoio: input.apoio === "sim" ? "sim" : "nao",
     areaId: String(input.areaId || ""),
     ticket: String(input.ticket || "").trim(),
@@ -69,6 +71,7 @@ export async function createImplantacao(
     updatedAt: now,
     updatedBy: authorName,
     historico: [{ farol, at: now, by: authorName }],
+    situacaoHistorico: situacao ? [{ texto: situacao, at: now, by: authorName }] : [],
   };
 
   await redis.hset(KEYS.implantacoes, { [imp.id]: imp });
@@ -90,7 +93,6 @@ export async function updateImplantacao(
   if (input.cliente !== undefined) next.cliente = String(input.cliente).trim();
   if (input.carteira !== undefined) next.carteira = String(input.carteira).trim();
   if (input.responsavel !== undefined) next.responsavel = String(input.responsavel).trim();
-  if (input.situacao !== undefined) next.situacao = String(input.situacao).trim();
   if (input.apoio !== undefined) next.apoio = input.apoio === "sim" ? "sim" : "nao";
   if (input.areaId !== undefined) next.areaId = String(input.areaId);
   if (input.ticket !== undefined) next.ticket = String(input.ticket).trim();
@@ -106,7 +108,20 @@ export async function updateImplantacao(
     next.farol = f;
   }
 
+  // Histórico de Situação / Ponto de atenção: registra quando o texto muda.
+  const situacaoHistorico: HistoricoSituacao[] = Array.isArray(existing.situacaoHistorico)
+    ? existing.situacaoHistorico.slice(-19)
+    : [];
+  if (input.situacao !== undefined) {
+    const s = String(input.situacao).trim();
+    if (s !== (existing.situacao || "") && s) {
+      situacaoHistorico.push({ texto: s, at: now, by: authorName });
+    }
+    next.situacao = s;
+  }
+
   next.historico = historico;
+  next.situacaoHistorico = situacaoHistorico;
   next.updatedAt = now;
   next.updatedBy = authorName;
 
@@ -413,6 +428,7 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
     updatedAt: now,
     updatedBy: authorName,
     historico: [{ farol, at: now, by: authorName }],
+    situacaoHistorico: situacao ? [{ texto: situacao, at: now, by: authorName }] : [],
   });
 
   const rows = [

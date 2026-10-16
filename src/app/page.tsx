@@ -204,6 +204,7 @@ export default function Page() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Implantacao | "new" | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Implantacao | null>(null);
+  const [extratoTarget, setExtratoTarget] = useState<Implantacao | null>(null);
   const [areasOpen, setAreasOpen] = useState(false);
   const [carteirasOpen, setCarteirasOpen] = useState(false);
   const [usersOpen, setUsersOpen] = useState(false);
@@ -292,7 +293,6 @@ export default function Page() {
   }, [imps]);
 
   const rows = useMemo(() => {
-    const order: Record<string, number> = { vermelho: 0, amarelo: 1, verde: 2 };
     let r = [...imps];
     if (filter.farol) r = r.filter((x) => x.farol === filter.farol);
     if (filter.areaId) r = r.filter((x) => x.areaId === filter.areaId);
@@ -306,11 +306,8 @@ export default function Page() {
         )
       );
     }
-    r.sort(
-      (a, b) =>
-        (order[a.farol] ?? 3) - (order[b.farol] ?? 3) ||
-        (b.updatedAt || 0) - (a.updatedAt || 0)
-    );
+    // Mais recentemente atualizadas primeiro.
+    r.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     return r;
   }, [imps, filter]);
 
@@ -614,6 +611,7 @@ export default function Page() {
                       onFarol={(f) => setFarol(r, f)}
                       onEdit={() => setEditTarget(r)}
                       onDelete={() => setDeleteTarget(r)}
+                      onExtrato={() => setExtratoTarget(r)}
                     />
                   ))
                 )}
@@ -656,6 +654,14 @@ export default function Page() {
             showToast(msg);
             load();
           }}
+        />
+      )}
+
+      {extratoTarget && (
+        <ExtratoModal
+          imp={extratoTarget}
+          area={areaById[extratoTarget.areaId]}
+          onClose={() => setExtratoTarget(null)}
         />
       )}
 
@@ -984,6 +990,7 @@ function Row({
   onFarol,
   onEdit,
   onDelete,
+  onExtrato,
 }: {
   imp: Implantacao;
   area?: Area;
@@ -992,6 +999,7 @@ function Row({
   onFarol: (f: Farol) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onExtrato: () => void;
 }) {
   return (
     <tr>
@@ -1064,25 +1072,29 @@ function Row({
         )}
       </td>
       <td>
-        {(canEdit || canDelete) && (
-          <div className="rowactions">
-            {canEdit && (
-              <button className="iconbtn" title="Editar" onClick={onEdit}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
-              </button>
-            )}
-            {canDelete && (
-              <button className="iconbtn" title="Excluir" onClick={onDelete}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
+        <div className="rowactions">
+          <button className="iconbtn" title="Ver extrato" onClick={onExtrato}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6M8 13h8M8 17h5" />
+            </svg>
+          </button>
+          {canEdit && (
+            <button className="iconbtn" title="Editar" onClick={onEdit}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          )}
+          {canDelete && (
+            <button className="iconbtn" title="Excluir" onClick={onDelete}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+              </svg>
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -1452,6 +1464,146 @@ function EditModal({
         </div>
       </div>
       {err && <p className="err">{err}</p>}
+    </Modal>
+  );
+}
+
+function ExtItem({ label, value }: { label: string; value?: React.ReactNode }) {
+  return (
+    <div className="ext-item">
+      <span className="ext-item-label">{label}</span>
+      <span className="ext-item-value">{value || <span className="muted">—</span>}</span>
+    </div>
+  );
+}
+
+function ExtratoModal({
+  imp,
+  area,
+  onClose,
+}: {
+  imp: Implantacao;
+  area?: Area;
+  onClose: () => void;
+}) {
+  const marcos = normalizeMarcos(imp.marcos);
+  const timeline = [
+    ...(Array.isArray(imp.historico) ? imp.historico : []).map((h) => ({
+      at: h.at,
+      by: h.by,
+      kind: "farol" as const,
+      farol: h.farol,
+    })),
+    ...(Array.isArray(imp.situacaoHistorico) ? imp.situacaoHistorico : []).map((s) => ({
+      at: s.at,
+      by: s.by,
+      kind: "situacao" as const,
+      texto: s.texto,
+    })),
+  ].sort((a, b) => b.at - a.at);
+
+  return (
+    <Modal
+      title="Extrato da implantação"
+      subtitle={imp.cliente}
+      icon={
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6M8 13h8M8 17h5" />
+        </svg>
+      }
+      width={640}
+      onClose={onClose}
+      footer={
+        <button className="btn ghost" onClick={onClose}>
+          Fechar
+        </button>
+      }
+    >
+      <div className="ext-top">
+        <span className="farol">
+          <span className={`fdot ${imp.farol}`} />
+          <span className="flabel">{FAROL_LABEL[imp.farol]}</span>
+        </span>
+        {imp.carteira && <span className="chip">{imp.carteira}</span>}
+      </div>
+
+      <div className="ext-grid">
+        <ExtItem label="Cliente" value={imp.cliente} />
+        <ExtItem label="Carteira" value={imp.carteira} />
+        <ExtItem label="Responsável" value={imp.responsavel} />
+        <ExtItem label="Área" value={area?.nome} />
+        <ExtItem label="Apoio de outra área" value={imp.apoio === "sim" ? "Sim" : "Não"} />
+        <ExtItem
+          label="Ticket"
+          value={
+            imp.ticket ? (
+              isTicketUrl(imp.ticket) ? (
+                <a className="ticket ticket-link" href={imp.ticket} target="_blank" rel="noopener noreferrer">
+                  {ticketLabel(imp.ticket)}
+                </a>
+              ) : (
+                imp.ticket
+              )
+            ) : undefined
+          }
+        />
+      </div>
+
+      <h4 className="ext-h">Etapas</h4>
+      <div className="ext-marcos">
+        {MARCOS.map(({ key, label }) => {
+          const m = marcos[key];
+          const st = marcoStatus(m);
+          return (
+            <div className="ext-marco" key={key}>
+              <span className={`mm ${st}`}>
+                <span className="mm-dot" />
+              </span>
+              <span className="ext-marco-label">{label}</span>
+              <span className="ext-marco-status">
+                {st === "feito" ? "Concluído" : st === "previsto" ? "Previsto" : "Pendente"}
+                {m.previsao ? ` · ${m.previsao}` : ""}
+                {key === "importacao" && m.feito && m.tipo ? ` · ${IMPORT_TIPO_LABEL[m.tipo]}` : ""}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <h4 className="ext-h">Situação / Ponto de atenção (atual)</h4>
+      <p className="ext-situacao">{imp.situacao || <span className="muted">—</span>}</p>
+
+      <h4 className="ext-h">Histórico</h4>
+      {timeline.length === 0 ? (
+        <p className="muted">Sem histórico registrado ainda.</p>
+      ) : (
+        <ul className="ext-timeline">
+          {timeline.map((t, i) => (
+            <li className="ext-tl-item" key={i}>
+              <span className={`ext-tl-dot ${t.kind === "farol" ? t.farol : "sit"}`} />
+              <div className="ext-tl-body">
+                <div className="ext-tl-when">
+                  {formatDateTime(t.at)}
+                  {t.by ? ` · ${t.by}` : ""}
+                </div>
+                {t.kind === "farol" ? (
+                  <div className="ext-tl-text">
+                    Farol alterado para <strong>{FAROL_LABEL[t.farol]}</strong>
+                  </div>
+                ) : (
+                  <div className="ext-tl-text">{t.texto}</div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="ext-meta">
+        Criado em {formatDateTime(imp.createdAt)} · Última atualização {formatDateTime(imp.updatedAt)}
+        {imp.updatedBy ? ` por ${imp.updatedBy}` : ""}
+      </div>
     </Modal>
   );
 }

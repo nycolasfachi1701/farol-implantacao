@@ -253,6 +253,31 @@ tbody tr:hover { background: var(--surface-2); }
 .prev-cal svg { width: 16px; height: 16px; }
 .prev-date-hidden { position: absolute; right: 2px; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
 .marco-edit-row select.marco-tipo { width: 182px; flex: none; margin: 0; font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; cursor: pointer; }
+
+/* Extrato (somente leitura) */
+.ext-top { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.ext-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+.ext-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ext-item-label { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; }
+.ext-item-value { font-size: 13.5px; color: var(--ink); word-break: break-word; }
+.ext-h { font-size: 12px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; margin: 20px 0 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+.ext-marcos { display: flex; flex-direction: column; gap: 8px; }
+.ext-marco { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.ext-marco .mm { flex: none; }
+.ext-marco-label { flex: 1; color: var(--ink); min-width: 0; }
+.ext-marco-status { color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+.ext-situacao { margin: 0; font-size: 13.5px; color: var(--ink-2); white-space: pre-wrap; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+.ext-timeline { list-style: none; margin: 0; padding: 0; }
+.ext-tl-item { display: flex; gap: 11px; padding: 0 0 14px; position: relative; }
+.ext-tl-item:not(:last-child)::before { content: ""; position: absolute; left: 5px; top: 14px; bottom: 0; width: 2px; background: var(--border); }
+.ext-tl-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; margin-top: 2px; background: var(--neutro); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border); z-index: 1; }
+.ext-tl-dot.verde { background: var(--verde); } .ext-tl-dot.amarelo { background: var(--amarelo); } .ext-tl-dot.vermelho { background: var(--vermelho); }
+.ext-tl-dot.sit { background: var(--accent); }
+.ext-tl-body { min-width: 0; flex: 1; }
+.ext-tl-when { font-size: 11px; color: var(--ink-3); margin-bottom: 2px; }
+.ext-tl-text { font-size: 13px; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.ext-meta { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--ink-3); }
+@media (max-width: 560px) { .ext-grid { grid-template-columns: 1fr; } }
 .meta { font-size: 11px; color: var(--ink-3); margin-top: 3px; }
 .upd {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; max-width: 100%;

@@ -14,6 +14,13 @@ export interface HistoricoEntry {
   by: string | null;
 }
 
+/** Entrada do histórico de "Situação / Ponto de atenção". */
+export interface HistoricoSituacao {
+  texto: string;
+  at: number;
+  by: string | null;
+}
+
 /** Tipo de importação realizada (só se aplica à etapa de importação). */
 export type ImportTipo = "" | "cadastros" | "xml";
 
@@ -82,6 +89,7 @@ export interface Implantacao {
   updatedAt: number;
   updatedBy: string | null;
   historico: HistoricoEntry[];
+  situacaoHistorico: HistoricoSituacao[];
 }
 
 export interface Area {
