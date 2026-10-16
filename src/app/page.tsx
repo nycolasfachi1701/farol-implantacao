@@ -1346,13 +1346,14 @@ function EditModal({
         </>
       }
     >
+      <p className="req-legend"><span className="req">*</span> Campos obrigatórios</p>
       <div className="grid2">
         <div className="field">
-          <label>Cliente</label>
+          <label>Cliente <span className="req">*</span></label>
           <input value={cliente} onChange={(e) => setCliente(e.target.value)} autoFocus />
         </div>
         <div className="field">
-          <label>Carteira</label>
+          <label>Carteira <span className="req">*</span></label>
           <select value={carteira} onChange={(e) => setCarteira(e.target.value)}>
             <option value="">Selecione…</option>
             {carteiraOptions.map((nome) => (
@@ -1428,6 +1429,7 @@ function EditModal({
                     <option value="">Tipo de importação…</option>
                     <option value="cadastros">Cadastros</option>
                     <option value="xml">XML</option>
+                    <option value="ambos">Ambos</option>
                   </select>
                 )}
                 <PrevisaoInput

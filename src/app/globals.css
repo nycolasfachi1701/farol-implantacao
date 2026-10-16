@@ -346,6 +346,8 @@ tbody tr:hover { background: var(--surface-2); }
 .modal footer { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--surface); }
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+.req { color: var(--vermelho); font-weight: 700; }
+.req-legend { margin: 0 0 14px; font-size: 12px; color: var(--ink-3); }
 .field input, .field select, .field textarea { width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; }
 .field textarea { resize: vertical; min-height: 64px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

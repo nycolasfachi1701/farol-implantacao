@@ -22,11 +22,12 @@ export interface HistoricoSituacao {
 }
 
 /** Tipo de importação realizada (só se aplica à etapa de importação). */
-export type ImportTipo = "" | "cadastros" | "xml";
+export type ImportTipo = "" | "cadastros" | "xml" | "ambos";
 
 export const IMPORT_TIPO_LABEL: Record<Exclude<ImportTipo, "">, string> = {
   cadastros: "Cadastros",
   xml: "XML",
+  ambos: "Ambos",
 };
 
 /** Etapa (marco) da implantação: feito (sim/não) + previsão quando pendente. */
@@ -69,7 +70,7 @@ export function normalizeMarcos(v: unknown): Marcos {
     }
     // Tipo de importação (somente na etapa de importação).
     const t = ((v as Record<string, unknown>).importacao as Record<string, unknown> | undefined)?.tipo;
-    out.importacao.tipo = t === "cadastros" || t === "xml" ? t : "";
+    out.importacao.tipo = t === "cadastros" || t === "xml" || t === "ambos" ? t : "";
   }
   return out;
 }
