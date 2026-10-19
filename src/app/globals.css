@@ -459,6 +459,34 @@ tbody tr:hover { background: var(--surface-2); }
 .report-empty { color: #6B7280; }
 .report-footer { margin-top: 24px; padding-top: 14px; border-top: 1px solid #E3E6EA; font-size: 11px; color: #8A909B; text-align: center; }
 
+/* ===== Painel gerencial ===== */
+.dash-root { background: var(--bg); align-items: stretch; }
+.dash-title { font-size: 15px; color: var(--branco); }
+.dash-scope { font-size: 12px; color: var(--cinza); margin-left: 10px; }
+.dash-body { width: 100%; max-width: 1100px; margin: 0 auto; padding: 22px clamp(14px, 3vw, 30px) 60px; }
+.dash-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 18px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 5px; }
+.kpi-num { font-size: 25px; font-weight: 700; color: var(--ink); line-height: 1; }
+.kpi-label { font-size: 11.5px; color: var(--ink-3); }
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+.dash-h { margin: 0 0 14px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.stackbar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--surface-3); }
+.stackbar span { display: block; height: 100%; }
+.stack-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; font-size: 12.5px; color: var(--ink-2); }
+.stack-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.bar-row { display: grid; grid-template-columns: 120px 1fr 90px; align-items: center; gap: 10px; margin-bottom: 9px; }
+.bar-label { font-size: 12.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { height: 10px; background: var(--surface-3); border-radius: 999px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 999px; min-width: 2px; }
+.bar-value { font-size: 12.5px; color: var(--ink); text-align: right; white-space: nowrap; }
+.bar-pct { color: var(--ink-3); font-size: 11.5px; }
+@media (max-width: 760px) {
+  .dash-kpis { grid-template-columns: repeat(2, 1fr); }
+  .dash-grid { grid-template-columns: 1fr; }
+  .bar-row { grid-template-columns: 96px 1fr 76px; }
+}
+
 @media print {
   .topbar, .wrap, .toast, .overlay { display: none !important; }
   .report-root { position: static !important; background: #fff !important; display: block !important; overflow: visible !important; }

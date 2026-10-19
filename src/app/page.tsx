@@ -259,6 +259,7 @@ export default function Page() {
   const [carteirasOpen, setCarteirasOpen] = useState(false);
   const [usersOpen, setUsersOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [dashOpen, setDashOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
 
   const isLogged = !!session;
@@ -562,6 +563,12 @@ export default function Page() {
               </div>
             )}
             <div className="spacer" />
+            <button className="btn ghost" onClick={() => setDashOpen(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 3v18h18M8 16V9M13 16V5M18 16v-4" />
+              </svg>
+              Painel
+            </button>
             <button className="btn ghost" onClick={() => setReportOpen(true)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -807,6 +814,14 @@ export default function Page() {
         />
       )}
 
+      {dashOpen && (
+        <DashboardView
+          imps={imps}
+          areas={areas}
+          onClose={() => setDashOpen(false)}
+        />
+      )}
+
       {pwdOpen && (
         <ChangePasswordModal
           username={session?.username || ""}
@@ -1030,6 +1045,189 @@ function ReportView({
         )}
 
         <div className="report-footer">Farol de Implantações · atua · rotina de consultoria</div>
+      </div>
+    </div>
+  );
+}
+
+function BarRow({
+  label,
+  value,
+  total,
+  color,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  color: string;
+}) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="bar-row">
+      <span className="bar-label" title={label}>
+        {label}
+      </span>
+      <span className="bar-track">
+        <span className="bar-fill" style={{ width: `${pct}%`, background: color }} />
+      </span>
+      <span className="bar-value">
+        {value} <span className="bar-pct">({pct}%)</span>
+      </span>
+    </div>
+  );
+}
+
+function DashboardView({
+  imps,
+  areas,
+  onClose,
+}: {
+  imps: Implantacao[];
+  areas: Area[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const total = imps.length;
+  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+
+  const farol = { verde: 0, amarelo: 0, vermelho: 0 };
+  const etapa = { importacao: 0, emissao: 0, acertoViagem: 0 };
+  let paradas = 0;
+  let vencidas = 0;
+  let concluidas = 0;
+  const carteiraMap = new Map<string, number>();
+  const areaMap = new Map<string, number>();
+  const areaNome: Record<string, string> = {};
+  areas.forEach((a) => (areaNome[a.id] = a.nome));
+
+  imps.forEach((i) => {
+    if (i.farol in farol) farol[i.farol]++;
+    const m = normalizeMarcos(i.marcos);
+    if (m.importacao.feito) etapa.importacao++;
+    if (m.emissao.feito) etapa.emissao++;
+    if (m.acertoViagem.feito) etapa.acertoViagem++;
+    if (m.importacao.feito && m.emissao.feito && m.acertoViagem.feito) concluidas++;
+    if (isParada(i)) paradas++;
+    if (temPrevisaoVencida(m)) vencidas++;
+    const c = i.carteira || "Sem carteira";
+    carteiraMap.set(c, (carteiraMap.get(c) || 0) + 1);
+    const a = i.areaId ? areaNome[i.areaId] || "Área removida" : "Sem área";
+    areaMap.set(a, (areaMap.get(a) || 0) + 1);
+  });
+
+  const porCarteira = [...carteiraMap.entries()].sort((a, b) => b[1] - a[1]);
+  const porArea = [...areaMap.entries()].sort((a, b) => b[1] - a[1]);
+
+  return (
+    <div className="report-root dash-root">
+      <div className="report-toolbar">
+        <strong className="dash-title">Painel gerencial</strong>
+        <span className="dash-scope">{total} implantações no seu acesso</span>
+        <div className="spacer" />
+        <button className="btn ghost" onClick={onClose}>
+          Fechar
+        </button>
+      </div>
+
+      <div className="dash-body">
+        <div className="dash-kpis">
+          <div className="kpi">
+            <span className="kpi-num">{total}</span>
+            <span className="kpi-label">Total</span>
+          </div>
+          <div className="kpi">
+            <span className="kpi-num" style={{ color: "var(--verde)" }}>
+              {pct(farol.verde)}%
+            </span>
+            <span className="kpi-label">Em dia</span>
+          </div>
+          <div className="kpi">
+            <span className="kpi-num" style={{ color: "var(--vermelho)" }}>
+              {farol.vermelho}
+            </span>
+            <span className="kpi-label">Críticos</span>
+          </div>
+          <div className="kpi">
+            <span className="kpi-num" style={{ color: "var(--amarelo)" }}>
+              {paradas}
+            </span>
+            <span className="kpi-label">Paradas (7+ dias)</span>
+          </div>
+          <div className="kpi">
+            <span className="kpi-num" style={{ color: "var(--vermelho)" }}>
+              {vencidas}
+            </span>
+            <span className="kpi-label">Previsão vencida</span>
+          </div>
+          <div className="kpi">
+            <span className="kpi-num" style={{ color: "var(--accent)" }}>
+              {pct(concluidas)}%
+            </span>
+            <span className="kpi-label">Concluídas (3 etapas)</span>
+          </div>
+        </div>
+
+        <div className="dash-grid">
+          <section className="dash-card">
+            <h4 className="dash-h">Distribuição por farol</h4>
+            {total === 0 ? (
+              <p className="muted">Sem dados.</p>
+            ) : (
+              <>
+                <div className="stackbar">
+                  {farol.verde > 0 && (
+                    <span style={{ width: `${pct(farol.verde)}%`, background: "var(--verde)" }} />
+                  )}
+                  {farol.amarelo > 0 && (
+                    <span style={{ width: `${pct(farol.amarelo)}%`, background: "var(--amarelo)" }} />
+                  )}
+                  {farol.vermelho > 0 && (
+                    <span style={{ width: `${pct(farol.vermelho)}%`, background: "var(--vermelho)" }} />
+                  )}
+                </div>
+                <div className="stack-legend">
+                  <span><span className="dot verde" /> Em dia — {farol.verde} ({pct(farol.verde)}%)</span>
+                  <span><span className="dot amarelo" /> Atenção — {farol.amarelo} ({pct(farol.amarelo)}%)</span>
+                  <span><span className="dot vermelho" /> Crítico — {farol.vermelho} ({pct(farol.vermelho)}%)</span>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="dash-card">
+            <h4 className="dash-h">Progresso das etapas</h4>
+            <BarRow label="Importação" value={etapa.importacao} total={total} color="var(--accent)" />
+            <BarRow label="Teste de emissão" value={etapa.emissao} total={total} color="var(--accent)" />
+            <BarRow label="Acerto de viagem" value={etapa.acertoViagem} total={total} color="var(--accent)" />
+          </section>
+
+          <section className="dash-card">
+            <h4 className="dash-h">Por carteira</h4>
+            {porCarteira.length === 0 ? (
+              <p className="muted">Sem dados.</p>
+            ) : (
+              porCarteira.map(([nome, n]) => (
+                <BarRow key={nome} label={nome} value={n} total={total} color="var(--accent)" />
+              ))
+            )}
+          </section>
+
+          <section className="dash-card">
+            <h4 className="dash-h">Por área</h4>
+            {porArea.length === 0 ? (
+              <p className="muted">Sem dados.</p>
+            ) : (
+              porArea.map(([nome, n]) => (
+                <BarRow key={nome} label={nome} value={n} total={total} color="var(--chumbo)" />
+              ))
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
