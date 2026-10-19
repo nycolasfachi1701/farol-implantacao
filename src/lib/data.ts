@@ -431,6 +431,14 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
     situacaoHistorico: situacao ? [{ texto: situacao, at: now, by: authorName }] : [],
   });
 
+  // Formata uma data relativa a hoje como dd/mm/aaaa (para exemplos realistas).
+  const fmtBR = (offsetDays: number): string => {
+    const d = new Date(now + offsetDays * 86400000);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  };
+
   const rows = [
     imp(
       "Transportadora Alfa",
@@ -442,7 +450,7 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       aProd.id,
       "IMP-1042",
       {
-        importacao: { feito: false, previsao: "25/10" },
+        importacao: { feito: false, previsao: fmtBR(6) },
         emissao: { feito: false, previsao: "" },
         acertoViagem: { feito: false, previsao: "" },
       }
@@ -458,7 +466,7 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       "IMP-1050",
       {
         importacao: { feito: true, previsao: "", tipos: ["xml"] },
-        emissao: { feito: false, previsao: "20/10" },
+        emissao: { feito: false, previsao: fmtBR(-4) },
         acertoViagem: { feito: false, previsao: "" },
       }
     ),
@@ -498,6 +506,10 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       "IMP-1033"
     ),
   ];
+
+  // Exemplo de implantação "parada" (sem atualização há alguns dias).
+  const parada = rows.find((r) => r.cliente === "Rodoviário Norte");
+  if (parada) parada.updatedAt = now - 9 * 86400000;
 
   const payload: Record<string, Implantacao> = {};
   for (const r of rows) payload[r.id] = r;

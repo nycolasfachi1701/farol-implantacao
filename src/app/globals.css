@@ -238,8 +238,25 @@ tbody tr:hover { background: var(--surface-2); }
 .mm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--neutro); flex: none; }
 .mm.feito { color: var(--verde); } .mm.feito .mm-dot { background: var(--verde); }
 .mm.previsto { color: var(--amarelo); } .mm.previsto .mm-dot { background: var(--amarelo); }
+.mm.atrasado { color: var(--vermelho); } .mm.atrasado .mm-dot { background: var(--vermelho); }
 .mm.pendente { color: var(--ink-3); }
 .mm-prev { font-weight: 500; }
+
+/* Barra de alertas */
+.alerts { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.alert-pill { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 999px; padding: 8px 14px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); transition: border-color .12s, box-shadow .12s; }
+.alert-pill:hover { border-color: var(--border-strong); }
+.alert-pill svg { width: 16px; height: 16px; flex: none; }
+.alert-pill.parada svg { color: var(--amarelo); }
+.alert-pill.vencida svg { color: var(--vermelho); }
+.alert-pill.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.alert-sub { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+
+/* Chip de atualização em estado "parada" */
+.upd.parada { background: var(--vermelho-bg); }
+.upd.parada svg { color: var(--vermelho); }
+.upd.parada .upd-when { color: var(--vermelho); }
+.upd-parada { color: var(--vermelho); font-weight: 700; }
 
 /* Etapas — edição progressiva no formulário */
 .marcos-edit { display: flex; flex-direction: column; gap: 8px; }

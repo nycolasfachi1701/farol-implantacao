@@ -67,8 +67,46 @@ function formatDateTime(ts?: number): string {
   }
 }
 
+/* ---------- helpers de alertas ---------- */
+/** Dias sem atualização a partir do qual a implantação é considerada "parada". */
+const DIAS_PARADA = 7;
+
+/** Converte "dd/mm/aaaa" em Date (ou null se não for data válida). */
+function parseBRDate(v: string): Date | null {
+  const m = (v || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const dt = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+/** Verdadeiro se a previsão (dd/mm/aaaa) já passou (anterior a hoje). */
+function isPrevisaoVencida(previsao: string): boolean {
+  const dt = parseBRDate(previsao);
+  if (!dt) return false;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return dt.getTime() < hoje.getTime();
+}
+
+function diasSemAtualizar(ts?: number): number {
+  if (!ts) return 0;
+  return Math.floor((Date.now() - ts) / 86400000);
+}
+
+function isParada(imp: Implantacao): boolean {
+  return diasSemAtualizar(imp.updatedAt) >= DIAS_PARADA;
+}
+
+/** Verdadeiro se alguma etapa não concluída tem previsão vencida. */
+function temPrevisaoVencida(marcos: Marcos): boolean {
+  return MARCOS.some(({ key }) => {
+    const m = marcos[key];
+    return !m.feito && isPrevisaoVencida(m.previsao);
+  });
+}
+
 /* ---------- helpers de etapas (marcos) ---------- */
-type MarcoStatus = "feito" | "previsto" | "pendente";
+type MarcoStatus = "feito" | "atrasado" | "previsto" | "pendente";
 const MARCO_ABBR: Record<MarcoKey, string> = {
   importacao: "Importação",
   emissao: "Emissão",
@@ -76,6 +114,7 @@ const MARCO_ABBR: Record<MarcoKey, string> = {
 };
 function marcoStatus(m: { feito: boolean; previsao: string }): MarcoStatus {
   if (m.feito) return "feito";
+  if (m.previsao && isPrevisaoVencida(m.previsao)) return "atrasado";
   if ((m.previsao || "").trim()) return "previsto";
   return "pendente";
 }
@@ -163,6 +202,8 @@ function MarcosMini({ marcos }: { marcos: Marcos }) {
         const title =
           st === "feito"
             ? `${short}: concluído${m.previsao ? " em " + m.previsao : ""}`
+            : st === "atrasado"
+            ? `${short}: previsão vencida (${m.previsao})`
             : st === "previsto"
             ? `${short}: previsão ${m.previsao}`
             : `${short}: pendente`;
@@ -181,8 +222,15 @@ function MarcosMini({ marcos }: { marcos: Marcos }) {
   );
 }
 
-type Filter = { farol: Farol | ""; areaId: string; resp: string; carteira: string; q: string };
-const EMPTY_FILTER: Filter = { farol: "", areaId: "", resp: "", carteira: "", q: "" };
+type Filter = {
+  farol: Farol | "";
+  areaId: string;
+  resp: string;
+  carteira: string;
+  q: string;
+  alerta: "" | "parada" | "vencida";
+};
+const EMPTY_FILTER: Filter = { farol: "", areaId: "", resp: "", carteira: "", q: "", alerta: "" };
 
 const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",
@@ -294,12 +342,25 @@ export default function Page() {
     return c;
   }, [imps]);
 
+  const alertas = useMemo(() => {
+    let parada = 0;
+    let vencida = 0;
+    imps.forEach((i) => {
+      if (isParada(i)) parada++;
+      if (temPrevisaoVencida(normalizeMarcos(i.marcos))) vencida++;
+    });
+    return { parada, vencida };
+  }, [imps]);
+
   const rows = useMemo(() => {
     let r = [...imps];
     if (filter.farol) r = r.filter((x) => x.farol === filter.farol);
     if (filter.areaId) r = r.filter((x) => x.areaId === filter.areaId);
     if (filter.resp) r = r.filter((x) => x.responsavel === filter.resp);
     if (filter.carteira) r = r.filter((x) => x.carteira === filter.carteira);
+    if (filter.alerta === "parada") r = r.filter(isParada);
+    else if (filter.alerta === "vencida")
+      r = r.filter((x) => temPrevisaoVencida(normalizeMarcos(x.marcos)));
     if (filter.q) {
       const q = filter.q.toLowerCase();
       r = r.filter((x) =>
@@ -440,6 +501,40 @@ export default function Page() {
             />
           ))}
         </div>
+
+        {/* Alertas */}
+        {(alertas.parada > 0 || alertas.vencida > 0) && (
+          <div className="alerts">
+            {alertas.parada > 0 && (
+              <button
+                className={`alert-pill parada ${filter.alerta === "parada" ? "active" : ""}`}
+                onClick={() =>
+                  setFilter((f) => ({ ...f, alerta: f.alerta === "parada" ? "" : "parada" }))
+                }
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+                </svg>
+                {alertas.parada} {alertas.parada === 1 ? "parada" : "paradas"}
+                <span className="alert-sub">sem atualização há {DIAS_PARADA}+ dias</span>
+              </button>
+            )}
+            {alertas.vencida > 0 && (
+              <button
+                className={`alert-pill vencida ${filter.alerta === "vencida" ? "active" : ""}`}
+                onClick={() =>
+                  setFilter((f) => ({ ...f, alerta: f.alerta === "vencida" ? "" : "vencida" }))
+                }
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+                {alertas.vencida} com previsão vencida
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Ações */}
         {(
@@ -1035,13 +1130,19 @@ function Row({
         <MarcosMini marcos={normalizeMarcos(imp.marcos)} />
         <div className={`situacao ${imp.situacao ? "" : "muted"}`}>{imp.situacao || "—"}</div>
         {(imp.updatedAt || imp.updatedBy) && (
-          <div className="upd" title={`Atualizado em ${formatDateTime(imp.updatedAt)}${imp.updatedBy ? " por " + imp.updatedBy : ""}`}>
+          <div
+            className={`upd ${isParada(imp) ? "parada" : ""}`}
+            title={`Atualizado em ${formatDateTime(imp.updatedAt)}${imp.updatedBy ? " por " + imp.updatedBy : ""}`}
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 2" />
             </svg>
             <span className="upd-when">{formatDateTime(imp.updatedAt)}</span>
             {imp.updatedBy && <span className="upd-by">· por {imp.updatedBy}</span>}
+            {isParada(imp) && (
+              <span className="upd-parada">· parada há {diasSemAtualizar(imp.updatedAt)}d</span>
+            )}
           </div>
         )}
       </td>
