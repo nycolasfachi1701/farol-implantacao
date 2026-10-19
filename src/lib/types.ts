@@ -150,12 +150,26 @@ export type Session = {
   carteiras: string[];
 } | null;
 
+/** Configurações gerais da ferramenta (ajustáveis pelo admin). */
+export interface Config {
+  /** Dias sem atualização a partir dos quais a implantação é "parada". */
+  diasParada: number;
+}
+
+export const DEFAULT_CONFIG: Config = { diasParada: 7 };
+
+export function normalizeConfig(v: unknown): Config {
+  const n = v && typeof v === "object" ? Number((v as Record<string, unknown>).diasParada) : NaN;
+  return { diasParada: Number.isFinite(n) && n >= 1 && n <= 365 ? Math.round(n) : DEFAULT_CONFIG.diasParada };
+}
+
 export interface StateResponse {
   configured: boolean;
   areas: Area[];
   carteiras: Carteira[];
   implantacoes: Implantacao[];
   session: Session;
+  config: Config;
   /** Presente apenas quando o solicitante é admin. */
   users?: UserPublic[];
 }

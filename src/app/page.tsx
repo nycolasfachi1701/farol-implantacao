@@ -20,6 +20,8 @@ import {
   Session,
   StateResponse,
   UserPublic,
+  Config,
+  DEFAULT_CONFIG,
 } from "@/lib/types";
 
 /* ---------- helpers de API ---------- */
@@ -68,8 +70,8 @@ function formatDateTime(ts?: number): string {
 }
 
 /* ---------- helpers de alertas ---------- */
-/** Dias sem atualização a partir do qual a implantação é considerada "parada". */
-const DIAS_PARADA = 7;
+/** Padrão de dias sem atualização para "parada" (ajustável pelo admin). */
+const DIAS_PARADA_PADRAO = 7;
 
 /** Converte "dd/mm/aaaa" em Date (ou null se não for data válida). */
 function parseBRDate(v: string): Date | null {
@@ -93,8 +95,8 @@ function diasSemAtualizar(ts?: number): number {
   return Math.floor((Date.now() - ts) / 86400000);
 }
 
-function isParada(imp: Implantacao): boolean {
-  return diasSemAtualizar(imp.updatedAt) >= DIAS_PARADA;
+function isParada(imp: Implantacao, dias: number): boolean {
+  return diasSemAtualizar(imp.updatedAt) >= dias;
 }
 
 /** Verdadeiro se alguma etapa não concluída tem previsão vencida. */
@@ -245,6 +247,7 @@ export default function Page() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [carteiras, setCarteiras] = useState<Carteira[]>([]);
   const [users, setUsers] = useState<UserPublic[]>([]);
+  const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
   const [imps, setImps] = useState<Implantacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>(EMPTY_FILTER);
@@ -258,12 +261,13 @@ export default function Page() {
   const [areasOpen, setAreasOpen] = useState(false);
   const [carteirasOpen, setCarteirasOpen] = useState(false);
   const [usersOpen, setUsersOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const [dashOpen, setDashOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
 
   const isLogged = !!session;
   const isAdmin = session?.role === "admin";
+  const diasParada = config.diasParada || DIAS_PARADA_PADRAO;
   /** Carteiras que a sessão pode usar/atribuir (admin = todas). */
   const myCarteiras = useMemo(
     () => (isAdmin ? carteiras.map((c) => c.nome) : session?.carteiras ?? []),
@@ -291,6 +295,7 @@ export default function Page() {
       setAreas(data.areas);
       setCarteiras(data.carteiras);
       setUsers(data.users ?? []);
+      setConfig(data.config ?? DEFAULT_CONFIG);
       setImps(data.implantacoes);
     } catch {
       /* mantém estado atual */
@@ -335,23 +340,15 @@ export default function Page() {
     return [...s].sort((a, b) => a.localeCompare(b));
   }, [imps]);
 
-  const counts = useMemo(() => {
-    const c = { verde: 0, amarelo: 0, vermelho: 0 };
-    imps.forEach((i) => {
-      if (i.farol in c) c[i.farol]++;
-    });
-    return c;
-  }, [imps]);
-
   const alertas = useMemo(() => {
     let parada = 0;
     let vencida = 0;
     imps.forEach((i) => {
-      if (isParada(i)) parada++;
+      if (isParada(i, diasParada)) parada++;
       if (temPrevisaoVencida(normalizeMarcos(i.marcos))) vencida++;
     });
     return { parada, vencida };
-  }, [imps]);
+  }, [imps, diasParada]);
 
   const rows = useMemo(() => {
     let r = [...imps];
@@ -359,7 +356,7 @@ export default function Page() {
     if (filter.areaId) r = r.filter((x) => x.areaId === filter.areaId);
     if (filter.resp) r = r.filter((x) => x.responsavel === filter.resp);
     if (filter.carteira) r = r.filter((x) => x.carteira === filter.carteira);
-    if (filter.alerta === "parada") r = r.filter(isParada);
+    if (filter.alerta === "parada") r = r.filter((x) => isParada(x, diasParada));
     else if (filter.alerta === "vencida")
       r = r.filter((x) => temPrevisaoVencida(normalizeMarcos(x.marcos)));
     if (filter.q) {
@@ -373,7 +370,7 @@ export default function Page() {
     // Mais recentemente atualizadas primeiro.
     r.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     return r;
-  }, [imps, filter]);
+  }, [imps, filter, diasParada]);
 
   /* ---------- ações ---------- */
   async function setFarol(imp: Implantacao, f: Farol) {
@@ -483,25 +480,14 @@ export default function Page() {
           <LoginPrompt onLogin={() => setLoginOpen(true)} />
         ) : (
           <>
-        {/* Summary */}
-        <div className="summary">
-          <StatCard
-            label="Total"
-            value={imps.length}
-            active={false}
-            onClick={() => setFilter((f) => ({ ...f, farol: "" }))}
-          />
-          {(["verde", "amarelo", "vermelho"] as Farol[]).map((f) => (
-            <StatCard
-              key={f}
-              label={FAROL_LABEL[f]}
-              dot={f}
-              value={counts[f]}
-              active={filter.farol === f}
-              onClick={() => setFilter((cur) => ({ ...cur, farol: cur.farol === f ? "" : f }))}
-            />
-          ))}
-        </div>
+        {/* Visão geral (dashboard no topo) */}
+        <Dashboard
+          imps={imps}
+          areas={areas}
+          diasParada={diasParada}
+          filter={filter}
+          setFilter={setFilter}
+        />
 
         {/* Alertas */}
         {(alertas.parada > 0 || alertas.vencida > 0) && (
@@ -517,7 +503,7 @@ export default function Page() {
                   <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
                 </svg>
                 {alertas.parada} {alertas.parada === 1 ? "parada" : "paradas"}
-                <span className="alert-sub">sem atualização há {DIAS_PARADA}+ dias</span>
+                <span className="alert-sub">sem atualização há {diasParada}+ dias</span>
               </button>
             )}
             {alertas.vencida > 0 && (
@@ -560,15 +546,16 @@ export default function Page() {
                   </svg>
                   Áreas
                 </button>
+                <button className="mgmt-btn" onClick={() => setConfigOpen(true)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+                  </svg>
+                  Config
+                </button>
               </div>
             )}
             <div className="spacer" />
-            <button className="btn ghost" onClick={() => setDashOpen(true)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 3v18h18M8 16V9M13 16V5M18 16v-4" />
-              </svg>
-              Painel
-            </button>
             <button className="btn ghost" onClick={() => setReportOpen(true)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -710,6 +697,7 @@ export default function Page() {
                       key={r.id}
                       imp={r}
                       area={areaById[r.areaId]}
+                      diasParada={diasParada}
                       canEdit={canEditImp(r)}
                       canDelete={isAdmin}
                       onFarol={(f) => setFarol(r, f)}
@@ -804,6 +792,18 @@ export default function Page() {
         />
       )}
 
+      {configOpen && (
+        <ConfigModal
+          config={config}
+          onClose={() => setConfigOpen(false)}
+          onSaved={(msg) => {
+            setConfigOpen(false);
+            showToast(msg);
+            load();
+          }}
+        />
+      )}
+
       {reportOpen && (
         <ReportView
           rows={rows}
@@ -814,13 +814,6 @@ export default function Page() {
         />
       )}
 
-      {dashOpen && (
-        <DashboardView
-          imps={imps}
-          areas={areas}
-          onClose={() => setDashOpen(false)}
-        />
-      )}
 
       {pwdOpen && (
         <ChangePasswordModal
@@ -1055,15 +1048,19 @@ function BarRow({
   value,
   total,
   color,
+  onClick,
+  active,
 }: {
   label: string;
   value: number;
   total: number;
   color: string;
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-  return (
-    <div className="bar-row">
+  const content = (
+    <>
       <span className="bar-label" title={label}>
         {label}
       </span>
@@ -1073,25 +1070,31 @@ function BarRow({
       <span className="bar-value">
         {value} <span className="bar-pct">({pct}%)</span>
       </span>
-    </div>
+    </>
   );
+  if (onClick) {
+    return (
+      <button type="button" className={`bar-row clickable ${active ? "active" : ""}`} onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+  return <div className="bar-row">{content}</div>;
 }
 
-function DashboardView({
+function Dashboard({
   imps,
   areas,
-  onClose,
+  diasParada,
+  filter,
+  setFilter,
 }: {
   imps: Implantacao[];
   areas: Area[];
-  onClose: () => void;
+  diasParada: number;
+  filter: Filter;
+  setFilter: React.Dispatch<React.SetStateAction<Filter>>;
 }) {
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", h);
-    return () => document.removeEventListener("keydown", h);
-  }, [onClose]);
-
   const total = imps.length;
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
@@ -1101,7 +1104,7 @@ function DashboardView({
   let vencidas = 0;
   let concluidas = 0;
   const carteiraMap = new Map<string, number>();
-  const areaMap = new Map<string, number>();
+  const areaMap = new Map<string, { id: string; n: number }>();
   const areaNome: Record<string, string> = {};
   areas.forEach((a) => (areaNome[a.id] = a.nome));
 
@@ -1112,122 +1115,143 @@ function DashboardView({
     if (m.emissao.feito) etapa.emissao++;
     if (m.acertoViagem.feito) etapa.acertoViagem++;
     if (m.importacao.feito && m.emissao.feito && m.acertoViagem.feito) concluidas++;
-    if (isParada(i)) paradas++;
+    if (isParada(i, diasParada)) paradas++;
     if (temPrevisaoVencida(m)) vencidas++;
     const c = i.carteira || "Sem carteira";
     carteiraMap.set(c, (carteiraMap.get(c) || 0) + 1);
-    const a = i.areaId ? areaNome[i.areaId] || "Área removida" : "Sem área";
-    areaMap.set(a, (areaMap.get(a) || 0) + 1);
+    const nome = i.areaId ? areaNome[i.areaId] || "Área removida" : "Sem área";
+    const prev = areaMap.get(nome);
+    areaMap.set(nome, { id: i.areaId || "", n: (prev?.n || 0) + 1 });
   });
 
   const porCarteira = [...carteiraMap.entries()].sort((a, b) => b[1] - a[1]);
-  const porArea = [...areaMap.entries()].sort((a, b) => b[1] - a[1]);
+  const porArea = [...areaMap.entries()].sort((a, b) => b[1].n - a[1].n);
+
+  const gv = total ? (farol.verde / total) * 100 : 0;
+  const ga = total ? (farol.amarelo / total) * 100 : 0;
+  const donutBg =
+    total === 0
+      ? "var(--surface-3)"
+      : `conic-gradient(var(--verde) 0 ${gv}%, var(--amarelo) ${gv}% ${gv + ga}%, var(--vermelho) ${gv + ga}% 100%)`;
+
+  const setFarolFilter = (f: Farol | "") =>
+    setFilter((cur) => ({ ...cur, alerta: "", farol: cur.farol === f ? "" : f }));
+  const setAlerta = (a: "parada" | "vencida") =>
+    setFilter((cur) => ({ ...cur, farol: "", alerta: cur.alerta === a ? "" : a }));
+
+  const semFiltro = !filter.farol && !filter.alerta;
 
   return (
-    <div className="report-root dash-root">
-      <div className="report-toolbar">
-        <strong className="dash-title">Painel gerencial</strong>
-        <span className="dash-scope">{total} implantações no seu acesso</span>
-        <div className="spacer" />
-        <button className="btn ghost" onClick={onClose}>
-          Fechar
+    <div className="dash">
+      <div className="dash-kpis">
+        <button
+          className={`kpi ${semFiltro ? "active" : ""}`}
+          onClick={() => setFilter((f) => ({ ...f, farol: "", alerta: "" }))}
+        >
+          <span className="kpi-num">{total}</span>
+          <span className="kpi-label">Total</span>
+        </button>
+        <button
+          className={`kpi ${filter.farol === "verde" ? "active" : ""}`}
+          onClick={() => setFarolFilter("verde")}
+        >
+          <span className="kpi-num" style={{ color: "var(--verde)" }}>{farol.verde}</span>
+          <span className="kpi-label">Em dia</span>
+        </button>
+        <button
+          className={`kpi ${filter.farol === "amarelo" ? "active" : ""}`}
+          onClick={() => setFarolFilter("amarelo")}
+        >
+          <span className="kpi-num" style={{ color: "var(--amarelo)" }}>{farol.amarelo}</span>
+          <span className="kpi-label">Atenção</span>
+        </button>
+        <button
+          className={`kpi ${filter.farol === "vermelho" ? "active" : ""}`}
+          onClick={() => setFarolFilter("vermelho")}
+        >
+          <span className="kpi-num" style={{ color: "var(--vermelho)" }}>{farol.vermelho}</span>
+          <span className="kpi-label">Crítico</span>
+        </button>
+        <button
+          className={`kpi ${filter.alerta === "parada" ? "active" : ""}`}
+          onClick={() => setAlerta("parada")}
+        >
+          <span className="kpi-num" style={{ color: "var(--amarelo)" }}>{paradas}</span>
+          <span className="kpi-label">Paradas</span>
+        </button>
+        <button
+          className={`kpi ${filter.alerta === "vencida" ? "active" : ""}`}
+          onClick={() => setAlerta("vencida")}
+        >
+          <span className="kpi-num" style={{ color: "var(--vermelho)" }}>{vencidas}</span>
+          <span className="kpi-label">Previsão vencida</span>
         </button>
       </div>
 
-      <div className="dash-body">
-        <div className="dash-kpis">
-          <div className="kpi">
-            <span className="kpi-num">{total}</span>
-            <span className="kpi-label">Total</span>
+      <div className="dash-grid">
+        <section className="dash-card">
+          <h4 className="dash-h">Distribuição por farol</h4>
+          <div className="donut-wrap">
+            <div className="donut" style={{ background: donutBg }}>
+              <div className="donut-hole">
+                <span className="donut-num">{pct(concluidas)}%</span>
+                <span className="donut-cap">concluídas</span>
+              </div>
+            </div>
+            <div className="stack-legend">
+              <span><span className="dot verde" /> Em dia — {farol.verde} ({pct(farol.verde)}%)</span>
+              <span><span className="dot amarelo" /> Atenção — {farol.amarelo} ({pct(farol.amarelo)}%)</span>
+              <span><span className="dot vermelho" /> Crítico — {farol.vermelho} ({pct(farol.vermelho)}%)</span>
+            </div>
           </div>
-          <div className="kpi">
-            <span className="kpi-num" style={{ color: "var(--verde)" }}>
-              {pct(farol.verde)}%
-            </span>
-            <span className="kpi-label">Em dia</span>
-          </div>
-          <div className="kpi">
-            <span className="kpi-num" style={{ color: "var(--vermelho)" }}>
-              {farol.vermelho}
-            </span>
-            <span className="kpi-label">Críticos</span>
-          </div>
-          <div className="kpi">
-            <span className="kpi-num" style={{ color: "var(--amarelo)" }}>
-              {paradas}
-            </span>
-            <span className="kpi-label">Paradas (7+ dias)</span>
-          </div>
-          <div className="kpi">
-            <span className="kpi-num" style={{ color: "var(--vermelho)" }}>
-              {vencidas}
-            </span>
-            <span className="kpi-label">Previsão vencida</span>
-          </div>
-          <div className="kpi">
-            <span className="kpi-num" style={{ color: "var(--accent)" }}>
-              {pct(concluidas)}%
-            </span>
-            <span className="kpi-label">Concluídas (3 etapas)</span>
-          </div>
-        </div>
+        </section>
 
-        <div className="dash-grid">
-          <section className="dash-card">
-            <h4 className="dash-h">Distribuição por farol</h4>
-            {total === 0 ? (
-              <p className="muted">Sem dados.</p>
-            ) : (
-              <>
-                <div className="stackbar">
-                  {farol.verde > 0 && (
-                    <span style={{ width: `${pct(farol.verde)}%`, background: "var(--verde)" }} />
-                  )}
-                  {farol.amarelo > 0 && (
-                    <span style={{ width: `${pct(farol.amarelo)}%`, background: "var(--amarelo)" }} />
-                  )}
-                  {farol.vermelho > 0 && (
-                    <span style={{ width: `${pct(farol.vermelho)}%`, background: "var(--vermelho)" }} />
-                  )}
-                </div>
-                <div className="stack-legend">
-                  <span><span className="dot verde" /> Em dia — {farol.verde} ({pct(farol.verde)}%)</span>
-                  <span><span className="dot amarelo" /> Atenção — {farol.amarelo} ({pct(farol.amarelo)}%)</span>
-                  <span><span className="dot vermelho" /> Crítico — {farol.vermelho} ({pct(farol.vermelho)}%)</span>
-                </div>
-              </>
-            )}
-          </section>
+        <section className="dash-card">
+          <h4 className="dash-h">Progresso das etapas</h4>
+          <BarRow label="Importação" value={etapa.importacao} total={total} color="var(--accent)" />
+          <BarRow label="Teste de emissão" value={etapa.emissao} total={total} color="var(--accent)" />
+          <BarRow label="Acerto de viagem" value={etapa.acertoViagem} total={total} color="var(--accent)" />
+        </section>
 
-          <section className="dash-card">
-            <h4 className="dash-h">Progresso das etapas</h4>
-            <BarRow label="Importação" value={etapa.importacao} total={total} color="var(--accent)" />
-            <BarRow label="Teste de emissão" value={etapa.emissao} total={total} color="var(--accent)" />
-            <BarRow label="Acerto de viagem" value={etapa.acertoViagem} total={total} color="var(--accent)" />
-          </section>
+        <section className="dash-card">
+          <h4 className="dash-h">Por carteira</h4>
+          {porCarteira.length === 0 ? (
+            <p className="muted">Sem dados.</p>
+          ) : (
+            porCarteira.map(([nome, n]) => (
+              <BarRow
+                key={nome}
+                label={nome}
+                value={n}
+                total={total}
+                color="var(--accent)"
+                active={filter.carteira === nome}
+                onClick={() =>
+                  setFilter((f) => ({ ...f, carteira: f.carteira === nome ? "" : nome }))
+                }
+              />
+            ))
+          )}
+        </section>
 
-          <section className="dash-card">
-            <h4 className="dash-h">Por carteira</h4>
-            {porCarteira.length === 0 ? (
-              <p className="muted">Sem dados.</p>
-            ) : (
-              porCarteira.map(([nome, n]) => (
-                <BarRow key={nome} label={nome} value={n} total={total} color="var(--accent)" />
-              ))
-            )}
-          </section>
-
-          <section className="dash-card">
-            <h4 className="dash-h">Por área</h4>
-            {porArea.length === 0 ? (
-              <p className="muted">Sem dados.</p>
-            ) : (
-              porArea.map(([nome, n]) => (
-                <BarRow key={nome} label={nome} value={n} total={total} color="var(--chumbo)" />
-              ))
-            )}
-          </section>
-        </div>
+        <section className="dash-card">
+          <h4 className="dash-h">Por área</h4>
+          {porArea.length === 0 ? (
+            <p className="muted">Sem dados.</p>
+          ) : (
+            porArea.map(([nome, { id, n }]) => (
+              <BarRow
+                key={nome}
+                label={nome}
+                value={n}
+                total={total}
+                color="var(--chumbo)"
+                active={!!id && filter.areaId === id}
+                onClick={id ? () => setFilter((f) => ({ ...f, areaId: f.areaId === id ? "" : id })) : undefined}
+              />
+            ))
+          )}
+        </section>
       </div>
     </div>
   );
@@ -1253,33 +1277,10 @@ function LoginPrompt({ onLogin }: { onLogin: () => void }) {
 }
 
 /* ============================================================= */
-function StatCard({
-  label,
-  value,
-  dot,
-  active,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  dot?: Farol;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button className="stat" aria-pressed={active} onClick={onClick}>
-      <span className="top">
-        {dot && <span className={`dot ${dot}`} />}
-        {label}
-      </span>
-      <span className="num">{value}</span>
-    </button>
-  );
-}
-
 function Row({
   imp,
   area,
+  diasParada,
   canEdit,
   canDelete,
   onFarol,
@@ -1289,6 +1290,7 @@ function Row({
 }: {
   imp: Implantacao;
   area?: Area;
+  diasParada: number;
   canEdit: boolean;
   canDelete: boolean;
   onFarol: (f: Farol) => void;
@@ -1329,7 +1331,7 @@ function Row({
         <div className={`situacao ${imp.situacao ? "" : "muted"}`}>{imp.situacao || "—"}</div>
         {(imp.updatedAt || imp.updatedBy) && (
           <div
-            className={`upd ${isParada(imp) ? "parada" : ""}`}
+            className={`upd ${isParada(imp, diasParada) ? "parada" : ""}`}
             title={`Atualizado em ${formatDateTime(imp.updatedAt)}${imp.updatedBy ? " por " + imp.updatedBy : ""}`}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -1338,7 +1340,7 @@ function Row({
             </svg>
             <span className="upd-when">{formatDateTime(imp.updatedAt)}</span>
             {imp.updatedBy && <span className="upd-by">· por {imp.updatedBy}</span>}
-            {isParada(imp) && (
+            {isParada(imp, diasParada) && (
               <span className="upd-parada">· parada há {diasSemAtualizar(imp.updatedAt)}d</span>
             )}
           </div>
@@ -1776,6 +1778,78 @@ function EditModal({
             ))}
           </select>
         </div>
+      </div>
+      {err && <p className="err">{err}</p>}
+    </Modal>
+  );
+}
+
+function ConfigModal({
+  config,
+  onClose,
+  onSaved,
+}: {
+  config: Config;
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+}) {
+  const [dias, setDias] = useState(String(config.diasParada));
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    const n = Number(dias);
+    if (!Number.isFinite(n) || n < 1 || n > 365) {
+      setErr("Informe um número de dias entre 1 e 365.");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    try {
+      await api("/api/config", { method: "POST", body: JSON.stringify({ diasParada: Math.round(n) }) });
+      onSaved("Configurações salvas");
+    } catch (e: any) {
+      setErr(e.message || "Não foi possível salvar.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title="Configurações"
+      subtitle="Ajustes gerais do acompanhamento"
+      icon={
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+        </svg>
+      }
+      width={440}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn ghost" onClick={onClose}>
+            Cancelar
+          </button>
+          <button className="btn primary" onClick={save} disabled={busy}>
+            {busy ? "Salvando…" : "Salvar"}
+          </button>
+        </>
+      }
+    >
+      <div className="field">
+        <label>Considerar “parada” após (dias sem atualização)</label>
+        <input
+          type="number"
+          min={1}
+          max={365}
+          value={dias}
+          onChange={(e) => setDias(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && save()}
+        />
+        <span className="hint">
+          Implantações sem atualização por esse período aparecem como “paradas” nos alertas e no painel.
+        </span>
       </div>
       {err && <p className="err">{err}</p>}
     </Modal>

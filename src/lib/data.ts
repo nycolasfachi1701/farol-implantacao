@@ -15,6 +15,9 @@ import {
   Session,
   emptyMarcos,
   normalizeMarcos,
+  Config,
+  DEFAULT_CONFIG,
+  normalizeConfig,
 } from "./types";
 
 export async function getAll(): Promise<{ areas: Area[]; implantacoes: Implantacao[] }> {
@@ -166,6 +169,23 @@ export async function createCarteira(nome: string): Promise<Carteira> {
 
 export async function deleteCarteira(id: string): Promise<void> {
   await redis.hdel(KEYS.carteiras, id);
+}
+
+/* ============================================================= */
+/* Configurações                                                 */
+/* ============================================================= */
+
+export async function getConfig(): Promise<Config> {
+  if (!isConfigured) return { ...DEFAULT_CONFIG };
+  const c = await redis.hget<Config>(KEYS.config, "app");
+  return normalizeConfig(c);
+}
+
+export async function setConfig(input: { diasParada?: unknown }): Promise<Config> {
+  const cur = await getConfig();
+  const next = normalizeConfig({ ...cur, ...input });
+  await redis.hset(KEYS.config, { app: next });
+  return next;
 }
 
 /* ============================================================= */

@@ -28,4 +28,5 @@ export const KEYS = {
   implantacoes: "farol:implantacoes",
   carteiras: "farol:carteiras",
   users: "farol:users",
+  config: "farol:config",
 } as const;
