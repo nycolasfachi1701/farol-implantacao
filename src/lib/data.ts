@@ -74,6 +74,7 @@ export async function createImplantacao(
     apoio: input.apoio === "sim" ? "sim" : "nao",
     areaId: String(input.areaId || ""),
     ticket: String(input.ticket || "").trim(),
+    goLive: String(input.goLive || "").trim(),
     marcos,
     createdAt: now,
     updatedAt: now,
@@ -104,6 +105,7 @@ export async function updateImplantacao(
   if (input.apoio !== undefined) next.apoio = input.apoio === "sim" ? "sim" : "nao";
   if (input.areaId !== undefined) next.areaId = String(input.areaId);
   if (input.ticket !== undefined) next.ticket = String(input.ticket).trim();
+  if (input.goLive !== undefined) next.goLive = String(input.goLive).trim();
   const novoMarcos = normalizeMarcos(input.marcos !== undefined ? input.marcos : existing.marcos);
   const marcosAnt = normalizeMarcos(existing.marcos);
   for (const { key } of MARCOS) {
@@ -448,7 +450,8 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
     apoio: "sim" | "nao",
     areaId: string,
     ticket: string,
-    marcos: Implantacao["marcos"] = emptyMarcos()
+    marcos: Implantacao["marcos"] = emptyMarcos(),
+    goLive = ""
   ): Implantacao => ({
     id: randomUUID(),
     cliente,
@@ -459,6 +462,7 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
     apoio,
     areaId,
     ticket,
+    goLive,
     marcos,
     createdAt: now,
     updatedAt: now,
@@ -489,7 +493,8 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
         importacao: { feito: false, previsao: fmtBR(6) },
         emissao: { feito: false, previsao: "" },
         acertoViagem: { feito: false, previsao: "" },
-      }
+      },
+      fmtBR(-3)
     ),
     imp(
       "Log Beta Cargas",
@@ -504,7 +509,8 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
         importacao: { feito: true, previsao: "", tipos: ["xml"], concluidoEm: now - 10 * 86400000 },
         emissao: { feito: false, previsao: fmtBR(-4) },
         acertoViagem: { feito: false, previsao: "" },
-      }
+      },
+      fmtBR(6)
     ),
     imp(
       "Carga Sul Express",
@@ -519,7 +525,8 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
         importacao: { feito: true, previsao: "", tipos: ["cadastros"], concluidoEm: now - 20 * 86400000 },
         emissao: { feito: true, previsao: "", concluidoEm: now - 12 * 86400000 },
         acertoViagem: { feito: true, previsao: "", concluidoEm: now - 5 * 86400000 },
-      }
+      },
+      fmtBR(-10)
     ),
     imp(
       "Rodoviário Norte",

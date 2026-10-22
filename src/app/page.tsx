@@ -95,6 +95,43 @@ function diasSemAtualizar(ts?: number): number {
   return Math.floor((Date.now() - ts) / 86400000);
 }
 
+/** Dias até o go-live (positivo = futuro, 0 = hoje, negativo = passou); null se inválido. */
+function diasAteGoLive(goLive: string): number | null {
+  const dt = parseBRDate(goLive);
+  if (!dt) return null;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return Math.round((dt.getTime() - hoje.getTime()) / 86400000);
+}
+
+function GoLiveBadge({ goLive, concluida }: { goLive: string; concluida: boolean }) {
+  const d = diasAteGoLive(goLive);
+  if (d === null) return null;
+  let cls: string;
+  let txt: string;
+  if (concluida) {
+    cls = "feito";
+    txt = `Go-live ${goLive}`;
+  } else if (d < 0) {
+    cls = "atraso";
+    txt = `Go-live atrasado ${Math.abs(d)}d`;
+  } else if (d === 0) {
+    cls = "hoje";
+    txt = "Go-live hoje";
+  } else {
+    cls = d <= 7 ? "perto" : "ok";
+    txt = `Go-live em ${d}d`;
+  }
+  return (
+    <span className={`golive ${cls}`} title={`Go-live: ${goLive}`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <path d="M4.5 16.5 3 21l4.5-1.5M14 6l4 4M5 14l5 5 8-3a10 10 0 0 0 3-7 10 10 0 0 0-10 3l-6 2Z" />
+      </svg>
+      {txt}
+    </span>
+  );
+}
+
 function isParada(imp: Implantacao, dias: number): boolean {
   return diasSemAtualizar(imp.updatedAt) >= dias;
 }
@@ -1549,6 +1586,12 @@ function KanbanCard({
 
       <MarcosMini marcos={normalizeMarcos(imp.marcos)} />
       <SituacaoCell texto={imp.situacao} />
+      {imp.goLive && (
+        <GoLiveBadge
+          goLive={imp.goLive}
+          concluida={faseAtual(normalizeMarcos(imp.marcos)) === "concluida"}
+        />
+      )}
 
       {(imp.updatedAt || imp.updatedBy) && (
         <div className={`upd ${isParada(imp, diasParada) ? "parada" : ""}`}>
@@ -1637,6 +1680,14 @@ function Row({
       <td>
         <MarcosMini marcos={normalizeMarcos(imp.marcos)} />
         <SituacaoCell texto={imp.situacao} />
+        {imp.goLive && (
+          <div className="situacao-goline">
+            <GoLiveBadge
+              goLive={imp.goLive}
+              concluida={faseAtual(normalizeMarcos(imp.marcos)) === "concluida"}
+            />
+          </div>
+        )}
         {(imp.updatedAt || imp.updatedBy) && (
           <div
             className={`upd ${isParada(imp, diasParada) ? "parada" : ""}`}
@@ -1898,6 +1949,7 @@ function EditModal({
   const [situacao, setSituacao] = useState(base?.situacao || "");
   const [apoio, setApoio] = useState<"sim" | "nao">(base?.apoio || "nao");
   const [areaId, setAreaId] = useState(base?.areaId || "");
+  const [goLive, setGoLive] = useState(base?.goLive || "");
   const [farol, setFarol] = useState<Farol>(base?.farol || "amarelo");
   const [marcos, setMarcos] = useState<Marcos>(() => normalizeMarcos(base?.marcos));
   const [err, setErr] = useState<string | null>(null);
@@ -1926,7 +1978,7 @@ function EditModal({
     }
     setBusy(true);
     setErr(null);
-    const payload = { cliente, carteira, responsavel, ticket, situacao, apoio, areaId, farol, marcos };
+    const payload = { cliente, carteira, responsavel, ticket, situacao, apoio, areaId, goLive, farol, marcos };
     try {
       if (isNew) {
         await api("/api/implantacoes", { method: "POST", body: JSON.stringify(payload) });
@@ -2086,6 +2138,10 @@ function EditModal({
             ))}
           </select>
         </div>
+      </div>
+      <div className="field">
+        <label>Data de go-live</label>
+        <PrevisaoInput value={goLive} onChange={setGoLive} placeholder="Go-live dd/mm/aaaa" />
       </div>
       {err && <p className="err">{err}</p>}
     </Modal>
@@ -2342,6 +2398,14 @@ function ExtratoModal({
               ) : (
                 imp.ticket
               )
+            ) : undefined
+          }
+        />
+        <ExtItem
+          label="Go-live"
+          value={
+            imp.goLive ? (
+              <GoLiveBadge goLive={imp.goLive} concluida={faseAtual(marcos) === "concluida"} />
             ) : undefined
           }
         />

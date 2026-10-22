@@ -235,6 +235,16 @@ tbody tr:hover { background: var(--surface-2); }
 .situacao.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .situacao-toggle { margin-top: 4px; font-size: 11.5px; }
 
+/* Go-live (contagem regressiva) */
+.situacao-goline { margin-top: 6px; }
+.golive { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px 3px 7px; border-radius: 999px; white-space: nowrap; }
+.golive svg { width: 12px; height: 12px; flex: none; }
+.golive.ok { background: var(--surface-3); color: var(--ink-2); }
+.golive.perto { background: var(--amarelo-bg); color: var(--amarelo); }
+.golive.hoje { background: var(--accent-weak); color: var(--accent-hover); }
+.golive.atraso { background: var(--vermelho-bg); color: var(--vermelho); }
+.golive.feito { background: var(--verde-bg); color: var(--verde); }
+
 /* Gargalos (admin) */
 .garg-h { font-size: 12px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; margin: 20px 0 10px; padding-top: 14px; border-top: 1px solid var(--border); }
 .garg-h.first { margin-top: 0; padding-top: 0; border-top: none; }

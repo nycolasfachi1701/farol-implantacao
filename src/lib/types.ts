@@ -106,6 +106,8 @@ export interface Implantacao {
   apoio: "sim" | "nao";
   areaId: string;
   ticket: string;
+  /** Data de go-live planejada (dd/mm/aaaa). */
+  goLive: string;
   marcos: Marcos;
   createdAt: number;
   updatedAt: number;
@@ -188,5 +190,6 @@ export const EDITABLE_FIELDS = [
   "apoio",
   "areaId",
   "ticket",
+  "goLive",
   "marcos",
 ] as const;
