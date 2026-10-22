@@ -273,6 +273,8 @@ export default function Page() {
   const [imps, setImps] = useState<Implantacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>(EMPTY_FILTER);
+  const [view, setView] = useState<"tabela" | "kanban">("tabela");
+  const [kanbanGroup, setKanbanGroup] = useState<"farol" | "fase">("fase");
   const [toast, setToast] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
@@ -666,7 +668,54 @@ export default function Page() {
           )}
         </div>
 
-        {/* Tabela */}
+        {/* Alternância de visualização */}
+        <div className="viewbar">
+          <div className="seg">
+            <button className={view === "tabela" ? "on" : ""} onClick={() => setView("tabela")}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 5h18M3 12h18M3 19h18" />
+              </svg>
+              Tabela
+            </button>
+            <button className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="5" height="16" rx="1" />
+                <rect x="10" y="4" width="5" height="11" rx="1" />
+                <rect x="17" y="4" width="4" height="7" rx="1" />
+              </svg>
+              Kanban
+            </button>
+          </div>
+          {view === "kanban" && (
+            <div className="seg">
+              <button className={kanbanGroup === "fase" ? "on" : ""} onClick={() => setKanbanGroup("fase")}>
+                Por fase
+              </button>
+              <button className={kanbanGroup === "farol" ? "on" : ""} onClick={() => setKanbanGroup("farol")}>
+                Por farol
+              </button>
+            </div>
+          )}
+        </div>
+
+        {view === "kanban" ? (
+          <KanbanBoard
+            rows={rows}
+            group={kanbanGroup}
+            loading={loading}
+            temImps={imps.length > 0}
+            areaById={areaById}
+            diasParada={diasParada}
+            canEditImp={canEditImp}
+            isAdmin={isAdmin}
+            onFarol={setFarol}
+            onEdit={(r) => setEditTarget(r)}
+            onDelete={(r) => setDeleteTarget(r)}
+            onExtrato={(r) => setExtratoTarget(r)}
+            onClearFilters={clearFilters}
+          />
+        ) : (
+        /* Tabela */
         <div className="tablecard">
           <div className="scroll">
             <table>
@@ -743,6 +792,7 @@ export default function Page() {
             </table>
           </div>
         </div>
+        )}
 
         <div className="legend">
           <span className="li"><span className="dot verde" /> Em dia — sem riscos</span>
@@ -1306,6 +1356,212 @@ function LoginPrompt({ onLogin }: { onLogin: () => void }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function KanbanBoard({
+  rows,
+  group,
+  loading,
+  temImps,
+  areaById,
+  diasParada,
+  canEditImp,
+  isAdmin,
+  onFarol,
+  onEdit,
+  onDelete,
+  onExtrato,
+  onClearFilters,
+}: {
+  rows: Implantacao[];
+  group: "farol" | "fase";
+  loading: boolean;
+  temImps: boolean;
+  areaById: Record<string, Area>;
+  diasParada: number;
+  canEditImp: (imp: Implantacao) => boolean;
+  isAdmin: boolean;
+  onFarol: (imp: Implantacao, f: Farol) => void;
+  onEdit: (imp: Implantacao) => void;
+  onDelete: (imp: Implantacao) => void;
+  onExtrato: (imp: Implantacao) => void;
+  onClearFilters: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="tablecard">
+        <div className="skel">Carregando…</div>
+      </div>
+    );
+  }
+  if (!temImps) {
+    return (
+      <div className="tablecard">
+        <div className="state">
+          <h3>Ainda não há implantações</h3>
+          <p>Cadastre uma implantação ou carregue dados de exemplo para começar.</p>
+        </div>
+      </div>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="tablecard">
+        <div className="state">
+          <h3>Nenhum resultado</h3>
+          <p>Nenhuma implantação corresponde aos filtros atuais.</p>
+          <div className="row">
+            <button className="btn ghost" onClick={onClearFilters}>
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const columns =
+    group === "farol"
+      ? (["verde", "amarelo", "vermelho"] as Farol[]).map((f) => ({
+          key: f as string,
+          label: FAROL_LABEL[f],
+          dot: f as string,
+          items: rows.filter((r) => r.farol === f),
+        }))
+      : (["importacao", "emissao", "acertoViagem", "concluida"] as Fase[]).map((f) => ({
+          key: f as string,
+          label: FASE_LABEL[f],
+          dot: "",
+          items: rows.filter((r) => faseAtual(normalizeMarcos(r.marcos)) === f),
+        }));
+
+  return (
+    <div className="kanban">
+      {columns.map((col) => (
+        <div className="kcol" key={col.key}>
+          <div className="kcol-head">
+            {col.dot && <span className={`dot ${col.dot}`} />}
+            <span className="kcol-title">{col.label}</span>
+            <span className="kcol-count">{col.items.length}</span>
+          </div>
+          <div className="kcol-body">
+            {col.items.length === 0 ? (
+              <div className="kcol-empty">—</div>
+            ) : (
+              col.items.map((r) => (
+                <KanbanCard
+                  key={r.id}
+                  imp={r}
+                  diasParada={diasParada}
+                  canEdit={canEditImp(r)}
+                  canDelete={isAdmin}
+                  onFarol={(f) => onFarol(r, f)}
+                  onEdit={() => onEdit(r)}
+                  onDelete={() => onDelete(r)}
+                  onExtrato={() => onExtrato(r)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KanbanCard({
+  imp,
+  diasParada,
+  canEdit,
+  canDelete,
+  onFarol,
+  onEdit,
+  onDelete,
+  onExtrato,
+}: {
+  imp: Implantacao;
+  diasParada: number;
+  canEdit: boolean;
+  canDelete: boolean;
+  onFarol: (f: Farol) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onExtrato: () => void;
+}) {
+  return (
+    <div className="kcard">
+      <div className="kcard-top">
+        <button className="kcard-cli" onClick={onExtrato} title="Ver extrato">
+          {imp.cliente || "—"}
+        </button>
+        <div className="kcard-acts">
+          <button className="iconbtn" title="Ver extrato" onClick={onExtrato}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6M8 13h5" />
+            </svg>
+          </button>
+          {canEdit && (
+            <button className="iconbtn" title="Editar" onClick={onEdit}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          )}
+          {canDelete && (
+            <button className="iconbtn" title="Excluir" onClick={onDelete}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="kcard-meta">
+        {imp.carteira && <span className="chip">{imp.carteira}</span>}
+        {imp.responsavel && <span className="kcard-resp">{imp.responsavel}</span>}
+      </div>
+
+      {canEdit ? (
+        <div className="segf">
+          {FAROIS.map((f) => (
+            <button
+              key={f}
+              data-f={f}
+              aria-pressed={imp.farol === f}
+              title={FAROL_LABEL[f]}
+              onClick={() => onFarol(f)}
+            >
+              <span className="inner" />
+            </button>
+          ))}
+          <span className="seglabel">{FAROL_LABEL[imp.farol]}</span>
+        </div>
+      ) : (
+        <span className="farol">
+          <span className={`fdot ${imp.farol}`} />
+          <span className="flabel">{FAROL_LABEL[imp.farol]}</span>
+        </span>
+      )}
+
+      <MarcosMini marcos={normalizeMarcos(imp.marcos)} />
+      <SituacaoCell texto={imp.situacao} />
+
+      {(imp.updatedAt || imp.updatedBy) && (
+        <div className={`upd ${isParada(imp, diasParada) ? "parada" : ""}`}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          <span className="upd-when">{formatDateTime(imp.updatedAt)}</span>
+          {isParada(imp, diasParada) && (
+            <span className="upd-parada">· parada há {diasSemAtualizar(imp.updatedAt)}d</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

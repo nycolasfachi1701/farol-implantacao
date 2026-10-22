@@ -252,6 +252,33 @@ tbody tr:hover { background: var(--surface-2); }
 .garg-nota { margin-top: 16px; }
 @media (max-width: 560px) { .garg-media { grid-template-columns: 1fr; } }
 
+/* ===== Alternância de visualização + Kanban ===== */
+.viewbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 3px; gap: 2px; }
+.seg button { appearance: none; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--ink-2); border-radius: 6px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px; transition: background .12s, color .12s; }
+.seg button:hover { color: var(--ink); }
+.seg button svg { width: 15px; height: 15px; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+
+.kanban { display: flex; gap: 14px; overflow-x: auto; overscroll-behavior-x: contain; padding-bottom: 8px; }
+.kcol { flex: 0 0 300px; min-width: 300px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; max-height: 72vh; }
+.kcol-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); border-radius: var(--radius) var(--radius) 0 0; position: sticky; top: 0; }
+.kcol-title { font-weight: 700; font-size: 13px; color: var(--ink); }
+.kcol-count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--ink-3); background: var(--surface-3); border-radius: 999px; padding: 1px 9px; }
+.kcol-body { padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.kcol-empty { text-align: center; color: var(--ink-3); font-size: 12px; padding: 14px 0; }
+.kcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 9px; }
+.kcard-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.kcard-cli { font: inherit; font-weight: 700; font-size: 14px; color: var(--ink); background: none; border: none; padding: 0; text-align: left; cursor: pointer; letter-spacing: -.01em; }
+.kcard-cli:hover { color: var(--accent); }
+.kcard-acts { display: flex; gap: 1px; flex: none; }
+.kcard-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.kcard-resp { font-size: 12.5px; color: var(--ink-2); }
+.kcard .situacao-wrap { max-width: none; }
+.kcard .marcos-mini { margin-bottom: 0; }
+.kcard .upd { margin-top: 0; }
+@media (max-width: 560px) { .kcol { flex-basis: 84vw; min-width: 84vw; } }
+
 /* Etapas (marcos) — indicador compacto na tabela */
 .marcos-mini { display: flex; flex-wrap: wrap; gap: 3px 9px; margin-bottom: 6px; }
 .mm { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
