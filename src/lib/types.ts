@@ -44,6 +44,8 @@ export interface Marco {
   previsao: string;
   /** Tipos de importação (um ou mais) — usado apenas na etapa "importacao". */
   tipos?: ImportTipo[];
+  /** Timestamp em que a etapa foi marcada como concluída (para métricas de tempo). */
+  concluidoEm?: number;
 }
 
 export type MarcoKey = "importacao" | "emissao" | "acertoViagem";
@@ -74,6 +76,8 @@ export function normalizeMarcos(v: unknown): Marcos {
       if (m && typeof m === "object") {
         const mm = m as Record<string, unknown>;
         out[key] = { feito: mm.feito === true, previsao: String(mm.previsao ?? "").trim() };
+        const ce = Number(mm.concluidoEm);
+        if (out[key].feito && Number.isFinite(ce) && ce > 0) out[key].concluidoEm = ce;
       }
     }
     // Tipos de importação (somente na etapa de importação). Aceita o formato

@@ -15,6 +15,7 @@ import {
   Session,
   emptyMarcos,
   normalizeMarcos,
+  MARCOS,
   Config,
   DEFAULT_CONFIG,
   normalizeConfig,
@@ -59,6 +60,10 @@ export async function createImplantacao(
   const now = Date.now();
   const farol = sanitizeFarol(input.farol);
   const situacao = String(input.situacao || "").trim();
+  const marcos = normalizeMarcos(input.marcos);
+  for (const { key } of MARCOS) {
+    if (marcos[key].feito && !marcos[key].concluidoEm) marcos[key].concluidoEm = now;
+  }
   const imp: Implantacao = {
     id: randomUUID(),
     cliente,
@@ -69,7 +74,7 @@ export async function createImplantacao(
     apoio: input.apoio === "sim" ? "sim" : "nao",
     areaId: String(input.areaId || ""),
     ticket: String(input.ticket || "").trim(),
-    marcos: normalizeMarcos(input.marcos),
+    marcos,
     createdAt: now,
     updatedAt: now,
     updatedBy: authorName,
@@ -99,7 +104,18 @@ export async function updateImplantacao(
   if (input.apoio !== undefined) next.apoio = input.apoio === "sim" ? "sim" : "nao";
   if (input.areaId !== undefined) next.areaId = String(input.areaId);
   if (input.ticket !== undefined) next.ticket = String(input.ticket).trim();
-  next.marcos = normalizeMarcos(input.marcos !== undefined ? input.marcos : existing.marcos);
+  const novoMarcos = normalizeMarcos(input.marcos !== undefined ? input.marcos : existing.marcos);
+  const marcosAnt = normalizeMarcos(existing.marcos);
+  for (const { key } of MARCOS) {
+    if (novoMarcos[key].feito) {
+      // Mantém o carimbo anterior se já estava concluída; senão marca agora.
+      novoMarcos[key].concluidoEm =
+        marcosAnt[key].feito && marcosAnt[key].concluidoEm ? marcosAnt[key].concluidoEm : now;
+    } else {
+      delete novoMarcos[key].concluidoEm;
+    }
+  }
+  next.marcos = novoMarcos;
 
   const historico: HistoricoEntry[] = Array.isArray(existing.historico)
     ? existing.historico.slice(-14)
@@ -485,7 +501,7 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       aCS.id,
       "IMP-1050",
       {
-        importacao: { feito: true, previsao: "", tipos: ["xml"] },
+        importacao: { feito: true, previsao: "", tipos: ["xml"], concluidoEm: now - 10 * 86400000 },
         emissao: { feito: false, previsao: fmtBR(-4) },
         acertoViagem: { feito: false, previsao: "" },
       }
@@ -500,9 +516,9 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
       "",
       "IMP-0998",
       {
-        importacao: { feito: true, previsao: "", tipos: ["cadastros"] },
-        emissao: { feito: true, previsao: "" },
-        acertoViagem: { feito: true, previsao: "" },
+        importacao: { feito: true, previsao: "", tipos: ["cadastros"], concluidoEm: now - 20 * 86400000 },
+        emissao: { feito: true, previsao: "", concluidoEm: now - 12 * 86400000 },
+        acertoViagem: { feito: true, previsao: "", concluidoEm: now - 5 * 86400000 },
       }
     ),
     imp(
@@ -530,6 +546,12 @@ export async function seedIfEmpty(authorName: string): Promise<boolean> {
   // Exemplo de implantação "parada" (sem atualização há alguns dias).
   const parada = rows.find((r) => r.cliente === "Rodoviário Norte");
   if (parada) parada.updatedAt = now - 9 * 86400000;
+
+  // Datas de criação recuadas para exemplos de tempo por etapa.
+  const cargaSul = rows.find((r) => r.cliente === "Carga Sul Express");
+  if (cargaSul) cargaSul.createdAt = now - 25 * 86400000;
+  const logBeta = rows.find((r) => r.cliente === "Log Beta Cargas");
+  if (logBeta) logBeta.createdAt = now - 14 * 86400000;
 
   const payload: Record<string, Implantacao> = {};
   for (const r of rows) payload[r.id] = r;

@@ -107,6 +107,28 @@ function temPrevisaoVencida(marcos: Marcos): boolean {
   });
 }
 
+/* ---------- helpers de fase / gargalos ---------- */
+type Fase = MarcoKey | "concluida";
+const FASE_LABEL: Record<Fase, string> = {
+  importacao: "Importação",
+  emissao: "Teste de emissão",
+  acertoViagem: "Acerto de viagem",
+  concluida: "Concluída",
+};
+function faseAtual(m: Marcos): Fase {
+  if (!m.importacao.feito) return "importacao";
+  if (!m.emissao.feito) return "emissao";
+  if (!m.acertoViagem.feito) return "acertoViagem";
+  return "concluida";
+}
+/** Momento em que entrou na fase atual (última etapa concluída, ou criação). */
+function entrouNaFaseEm(imp: Implantacao, m: Marcos): number {
+  const stamps = MARCOS.map(({ key }) => m[key])
+    .filter((x) => x.feito && x.concluidoEm)
+    .map((x) => x.concluidoEm as number);
+  return stamps.length ? Math.max(...stamps) : imp.createdAt || Date.now();
+}
+
 /* ---------- helpers de etapas (marcos) ---------- */
 type MarcoStatus = "feito" | "atrasado" | "previsto" | "pendente";
 const MARCO_ABBR: Record<MarcoKey, string> = {
@@ -263,6 +285,7 @@ export default function Page() {
   const [usersOpen, setUsersOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [gargalosOpen, setGargalosOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
 
   const isLogged = !!session;
@@ -556,6 +579,15 @@ export default function Page() {
               </div>
             )}
             <div className="spacer" />
+            {isAdmin && (
+              <button className="btn ghost" onClick={() => setGargalosOpen(true)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="13" r="8" />
+                  <path d="M12 9v4l2.5 2.5M9 2h6M12 5V2" />
+                </svg>
+                Gargalos
+              </button>
+            )}
             <button className="btn ghost" onClick={() => setReportOpen(true)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -803,6 +835,8 @@ export default function Page() {
           }}
         />
       )}
+
+      {gargalosOpen && <GargalosModal imps={imps} onClose={() => setGargalosOpen(false)} />}
 
       {reportOpen && (
         <ReportView
@@ -1276,6 +1310,24 @@ function LoginPrompt({ onLogin }: { onLogin: () => void }) {
   );
 }
 
+function SituacaoCell({ texto }: { texto: string }) {
+  const [aberto, setAberto] = useState(false);
+  if (!texto) return <div className="situacao muted">—</div>;
+  const longo = texto.length > 140;
+  return (
+    <div className="situacao-wrap">
+      <div className={`situacao ${aberto || !longo ? "" : "clamp"}`} title={longo ? texto : undefined}>
+        {texto}
+      </div>
+      {longo && (
+        <button type="button" className="linkbtn situacao-toggle" onClick={() => setAberto((a) => !a)}>
+          {aberto ? "ver menos" : "ver mais"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ============================================================= */
 function Row({
   imp,
@@ -1328,7 +1380,7 @@ function Row({
       </td>
       <td>
         <MarcosMini marcos={normalizeMarcos(imp.marcos)} />
-        <div className={`situacao ${imp.situacao ? "" : "muted"}`}>{imp.situacao || "—"}</div>
+        <SituacaoCell texto={imp.situacao} />
         {(imp.updatedAt || imp.updatedBy) && (
           <div
             className={`upd ${isParada(imp, diasParada) ? "parada" : ""}`}
@@ -1780,6 +1832,107 @@ function EditModal({
         </div>
       </div>
       {err && <p className="err">{err}</p>}
+    </Modal>
+  );
+}
+
+function GargalosModal({ imps, onClose }: { imps: Implantacao[]; onClose: () => void }) {
+  const durs: Record<MarcoKey, number[]> = { importacao: [], emissao: [], acertoViagem: [] };
+  const faseCount: Record<Fase, number> = { importacao: 0, emissao: 0, acertoViagem: 0, concluida: 0 };
+  const abertos: { cliente: string; carteira: string; fase: Fase; dias: number }[] = [];
+
+  imps.forEach((i) => {
+    const m = normalizeMarcos(i.marcos);
+    const ic = m.importacao.concluidoEm;
+    const ec = m.emissao.concluidoEm;
+    const ac = m.acertoViagem.concluidoEm;
+    if (ic && i.createdAt && ic > i.createdAt) durs.importacao.push(ic - i.createdAt);
+    if (ec && ic && ec > ic) durs.emissao.push(ec - ic);
+    if (ac && ec && ac > ec) durs.acertoViagem.push(ac - ec);
+    const f = faseAtual(m);
+    faseCount[f]++;
+    if (f !== "concluida") {
+      abertos.push({
+        cliente: i.cliente,
+        carteira: i.carteira,
+        fase: f,
+        dias: Math.floor((Date.now() - entrouNaFaseEm(i, m)) / 86400000),
+      });
+    }
+  });
+  abertos.sort((a, b) => b.dias - a.dias);
+
+  const media = (arr: number[]) =>
+    arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length / 86400000) : null;
+  const etapas: { key: MarcoKey; label: string }[] = [
+    { key: "importacao", label: "Importação" },
+    { key: "emissao", label: "Teste de emissão" },
+    { key: "acertoViagem", label: "Acerto de viagem" },
+  ];
+
+  return (
+    <Modal
+      title="Tempo por etapa e gargalos"
+      subtitle="Onde o processo está travando"
+      icon={
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="13" r="8" />
+          <path d="M12 9v4l2.5 2.5M9 2h6M12 5V2" />
+        </svg>
+      }
+      width={640}
+      onClose={onClose}
+      footer={
+        <button className="btn ghost" onClick={onClose}>
+          Fechar
+        </button>
+      }
+    >
+      <h4 className="garg-h first">Tempo médio por etapa</h4>
+      <div className="garg-media">
+        {etapas.map((e) => {
+          const m = media(durs[e.key]);
+          return (
+            <div className="garg-media-item" key={e.key}>
+              <span className="garg-num">{m === null ? "—" : `${m}d`}</span>
+              <span className="garg-cap">{e.label}</span>
+              <span className="garg-sub">{durs[e.key].length} amostra(s)</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <h4 className="garg-h">Em cada fase</h4>
+      <div className="garg-fases">
+        <span className="chip">Importação: {faseCount.importacao}</span>
+        <span className="chip">Emissão: {faseCount.emissao}</span>
+        <span className="chip">Acerto: {faseCount.acertoViagem}</span>
+        <span className="chip">Concluídas: {faseCount.concluida}</span>
+      </div>
+
+      <h4 className="garg-h">Mais tempo na fase atual</h4>
+      {abertos.length === 0 ? (
+        <p className="muted">Nenhuma implantação em andamento.</p>
+      ) : (
+        <div className="garg-list">
+          {abertos.slice(0, 10).map((a, i) => (
+            <div className="garg-row" key={i}>
+              <span className="garg-cli">
+                {a.cliente}
+                {a.carteira ? <span className="umuted"> · {a.carteira}</span> : null}
+              </span>
+              <span className="chip">{FASE_LABEL[a.fase]}</span>
+              <span className={`garg-dias ${a.dias >= 14 ? "alto" : ""}`}>{a.dias}d</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="hint garg-nota">
+        O tempo por etapa é medido pela marcação de conclusão das etapas — passa a acumular a
+        partir de agora. O “tempo na fase atual” usa a última conclusão (ou a criação, para
+        registros antigos).
+      </p>
     </Modal>
   );
 }

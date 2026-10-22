@@ -230,7 +230,27 @@ tbody tr:hover { background: var(--surface-2); }
 .chip { display: inline-block; font-size: 11.5px; font-weight: 500; padding: 3px 9px; border-radius: 999px; background: var(--surface-3); color: var(--ink-2); white-space: nowrap; }
 .apoio-sim { color: var(--laranja-escuro); font-weight: 600; }
 .apoio-nao { color: var(--ink-3); }
-.situacao { max-width: 280px; color: var(--ink-2); font-size: 13px; }
+.situacao-wrap { max-width: 320px; }
+.situacao { color: var(--ink-2); font-size: 13px; white-space: pre-wrap; }
+.situacao.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.situacao-toggle { margin-top: 4px; font-size: 11.5px; }
+
+/* Gargalos (admin) */
+.garg-h { font-size: 12px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; margin: 20px 0 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+.garg-h.first { margin-top: 0; padding-top: 0; border-top: none; }
+.garg-media { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.garg-media-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 3px; }
+.garg-num { font-size: 22px; font-weight: 700; color: var(--accent); line-height: 1; }
+.garg-cap { font-size: 12.5px; color: var(--ink); }
+.garg-sub { font-size: 11px; color: var(--ink-3); }
+.garg-fases { display: flex; flex-wrap: wrap; gap: 8px; }
+.garg-list { display: flex; flex-direction: column; gap: 7px; }
+.garg-row { display: flex; align-items: center; gap: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; }
+.garg-cli { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.garg-dias { flex: none; font-size: 13px; font-weight: 700; color: var(--ink-2); min-width: 42px; text-align: right; }
+.garg-dias.alto { color: var(--vermelho); }
+.garg-nota { margin-top: 16px; }
+@media (max-width: 560px) { .garg-media { grid-template-columns: 1fr; } }
 
 /* Etapas (marcos) — indicador compacto na tabela */
 .marcos-mini { display: flex; flex-wrap: wrap; gap: 3px 9px; margin-bottom: 6px; }
